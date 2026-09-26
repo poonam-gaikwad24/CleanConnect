@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+
+# Module 5: local-disk fallback for complaint evidence photos when
+# Cloudinary isn't configured — never committed.
+uploads/
