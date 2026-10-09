@@ -17,27 +17,25 @@ function NavBar() {
           CleanConnect
         </Link>
         <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-          {user?.role == 'CITIZEN' && (
           <Link to="/toilets" className="hover:underline">
             Toilets
           </Link>
-          )}
-          {user?.role == 'CITIZEN' && (
+          {user?.role === "CITIZEN" && (
             <Link to="/complaints/create" className="hover:underline">
               Report an Issue
             </Link>
           )}
-          {user?.role == 'CITIZEN' && (
+          {user?.role === "CITIZEN" && (
             <Link to="/my-complaints" className="hover:underline">
               My Complaints
             </Link>
           )}
-          {user?.role == 'CITIZEN' && (
+          {user?.role === "CITIZEN" && (
             <Link to="/toilet-requests/create" className="hover:underline">
               Request Toilet
             </Link>
           )}
-          {user?.role == 'CITIZEN' && (
+          {user?.role === "CITIZEN" && (
             <Link to="/my-toilet-requests" className="hover:underline">
               My Requests
             </Link>
@@ -55,6 +53,16 @@ function NavBar() {
           {user?.role === 'ADMIN' && (
             <Link to="/admin/toilets" className="hover:underline">
               Admin: Toilets
+            </Link>
+          )}
+          {user?.role === 'ADMIN' && (
+            <Link to="/admin/staff" className="hover:underline">
+              Admin: Staff
+            </Link>
+          )}
+          {user?.role === 'STAFF' && (
+            <Link to="/staff/tasks" className="hover:underline">
+              My Tasks
             </Link>
           )}
           {user ? (

@@ -19,6 +19,8 @@ function MyComplaints() {
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-800">My Complaints</h1>
+        
+        
         <Link
           to="/complaints/create"
           className="rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getToiletById, Toilet } from '../api/toilets';
 import { buildGoogleMapsSearchUrl } from '../utils/googleMapsLink';
 import { useAuth } from '../context/AuthContext';
+import ToiletReviews from '../components/ToiletReviews';
 
 function ToiletDetails() {
   const { id } = useParams<{ id: string }>();
@@ -48,7 +49,7 @@ function ToiletDetails() {
             >
               View on Google Maps
             </a>
-            {user && (
+            {user?.role === 'CITIZEN'  && (
               <Link
                 to={`/complaints/create?toilet=${toilet.cleanConnectId ?? toilet.id}`}
                 className="inline-block text-sm font-medium text-slate-600 hover:underline"
@@ -86,6 +87,8 @@ function ToiletDetails() {
               <dd className="text-slate-800">{toilet.status ?? 'Not recorded'}</dd>
             </div>
           </dl>
+
+          <ToiletReviews toiletId={toilet.id} />
         </div>
       )}
     </div>

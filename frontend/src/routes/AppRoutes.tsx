@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import AdminComplaints from '../pages/AdminComplaints';
+import AdminStaff from '../pages/AdminStaff';
+import AdminTaskDetails from '../pages/AdminTaskDetails';
 import AdminToiletCreate from '../pages/AdminToiletCreate';
 import AdminToiletRequests from '../pages/AdminToiletRequests';
 import AdminToilets from '../pages/AdminToilets';
@@ -11,6 +13,8 @@ import Login from '../pages/Login';
 import MyComplaints from '../pages/MyComplaints';
 import MyToiletRequests from '../pages/MyToiletRequests';
 import Register from '../pages/Register';
+import StaffTaskDetails from '../pages/StaffTaskDetails';
+import StaffTasks from '../pages/StaffTasks';
 import Toilets from '../pages/Toilets';
 import ToiletDetails from '../pages/ToiletDetails';
 import ToiletRequestCreate from '../pages/ToiletRequestCreate';
@@ -115,6 +119,42 @@ function AppRoutes() {
         element={
           <ProtectedRoute role="ADMIN">
             <AdminToiletCreate />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Module 7: maintenance tasks + staff management. Complaint ->
+          Task assignment itself happens inline on ComplaintDetails
+          (admin) — these routes are the task's own detail views. */}
+      <Route
+        path="/staff/tasks"
+        element={
+          <ProtectedRoute role="STAFF">
+            <StaffTasks />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/tasks/:id"
+        element={
+          <ProtectedRoute role="STAFF">
+            <StaffTaskDetails />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/tasks/:id"
+        element={
+          <ProtectedRoute role="ADMIN">
+            <AdminTaskDetails />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/staff"
+        element={
+          <ProtectedRoute role="ADMIN">
+            <AdminStaff />
           </ProtectedRoute>
         }
       />

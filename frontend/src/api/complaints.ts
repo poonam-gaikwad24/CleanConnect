@@ -1,8 +1,29 @@
 import apiClient from './client';
+import { PublicUser } from './auth';
 import { Toilet } from './toilets';
 
 export type ComplaintCategory = 'CLEANLINESS' | 'WATER_SHORTAGE' | 'BROKEN_INFRASTRUCTURE' | 'OTHER';
 export type ComplaintStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED';
+
+// Module 7: a lightweight summary only (not the full MaintenanceTask
+// shape from api/maintenanceTasks.ts — importing that here would
+// create a circular import, since it in turn imports Complaint from
+// this file). Just enough for the Admin Complaint Details page to
+// decide whether to show "Assign Maintenance Task" or a task summary
+// linking to the full task view.
+export type MaintenanceTaskStatus =
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'SUBMITTED'
+  | 'REVISION_REQUIRED'
+  | 'VERIFIED';
+
+export interface MaintenanceTaskSummary {
+  id: string;
+  taskCode: string;
+  status: MaintenanceTaskStatus;
+  assignedStaff: PublicUser;
+}
 
 export interface Complaint {
   id: string;
@@ -16,6 +37,7 @@ export interface Complaint {
   status: ComplaintStatus;
   createdAt: string;
   updatedAt: string;
+  maintenanceTask: MaintenanceTaskSummary | null;
 }
 
 export interface PaginatedComplaints {

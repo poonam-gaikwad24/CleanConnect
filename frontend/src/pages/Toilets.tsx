@@ -39,7 +39,7 @@ function Toilets() {
             setPage(1);
           }}
         />
-        {user && (
+        {user?.role === 'CITIZEN' && (
           <p className="mt-2 text-sm text-slate-500">
             Toilet not listed?{' '}
             <Link to="/toilet-requests/create" className="text-blue-600 hover:underline">
@@ -77,7 +77,7 @@ function Toilets() {
                   >
                     View on Google Maps
                   </a>
-                  {user && (
+                  {user?.role === 'CITIZEN' && (
                     <Link
                       to={`/complaints/create?toilet=${toilet.cleanConnectId ?? toilet.id}`}
                       onClick={(e) => e.stopPropagation()}
