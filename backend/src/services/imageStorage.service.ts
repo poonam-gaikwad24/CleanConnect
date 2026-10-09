@@ -68,6 +68,15 @@ export function uploadToiletRequestImage(file: Express.Multer.File): Promise<str
   return uploadImage(file, 'toilet-requests');
 }
 
+// Module 7: staff proof-of-work photos. Conceptually distinct from
+// Complaint.imageUrl (citizen's evidence of the problem) — this is
+// staff's evidence the maintenance work was actually performed — but
+// stored through the exact same generic uploadImage() as every other
+// image in the app, just in its own folder.
+export function uploadMaintenanceProofImage(file: Express.Multer.File): Promise<string> {
+  return uploadImage(file, 'maintenance-proof');
+}
+
 function uploadToCloudinary(
   file: Express.Multer.File,
   filename: string,

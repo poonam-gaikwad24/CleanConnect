@@ -15,8 +15,11 @@ export interface PublicUser {
 }
 
 // Strips passwordHash (and anything else internal) before a user is
-// ever returned from the API.
-function toPublicUser(user: User): PublicUser {
+// ever returned from the API. Exported so Module 7's staff.service.ts
+// (admin-created STAFF accounts) can reuse it too — there is only one
+// definition of "what a user looks like over the API" in this
+// codebase.
+export function toPublicUser(user: User): PublicUser {
   return {
     id: user.id,
     name: user.name,
@@ -24,6 +27,15 @@ function toPublicUser(user: User): PublicUser {
     role: user.role,
     createdAt: user.createdAt,
   };
+}
+
+// Exported for the same reason as toPublicUser above — staff.service.ts
+// reuses this exact hashing (same bcrypt call, same configured salt
+// rounds) rather than duplicating it, so there is only one password
+// hashing code path in the whole app, regardless of which flow created
+// the account.
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, env.BCRYPT_SALT_ROUNDS);
 }
 
 export async function register(
@@ -35,7 +47,7 @@ export async function register(
     throw new AppError('Email is already registered', 409);
   }
 
-  const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_SALT_ROUNDS);
+  const passwordHash = await hashPassword(input.password);
 
   // role is never taken from input — public registration is always CITIZEN.
   const user = await prisma.user.create({

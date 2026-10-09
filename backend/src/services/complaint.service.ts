@@ -1,11 +1,32 @@
-import { Complaint, ComplaintStatus, Prisma, Role, Toilet } from '@prisma/client';
+import { Complaint, ComplaintStatus, MaintenanceTask, Prisma, Role, Toilet, User } from '@prisma/client';
 import { prisma } from '../config/db';
 import { AppError } from '../utils/AppError';
 import { formatComplaintCode } from '../utils/complaintId';
 import { CreateComplaintInput, ListComplaintsQuery } from '../validators/complaint.validators';
 import { uploadComplaintImage } from './imageStorage.service';
 
-export type ComplaintWithToilet = Complaint & { toilet: Toilet };
+// Module 7 addition: complaint responses now also carry
+// `maintenanceTask` (null if none has been assigned yet), with its
+// assignedStaff reduced to public fields only (never passwordHash).
+// This is purely additive — every field that existed before Module 7
+// is unchanged, so this does not affect Module 5 behavior at all; it
+// just means the existing Admin Complaint Details page can tell
+// whether to show "Assign Maintenance Task" or the task's current
+// status without a second API call.
+type AssignedStaffPublic = Pick<User, 'id' | 'name' | 'email' | 'role'>;
+type MaintenanceTaskSummary = MaintenanceTask & { assignedStaff: AssignedStaffPublic };
+
+const COMPLAINT_INCLUDE = {
+  toilet: true,
+  maintenanceTask: {
+    include: { assignedStaff: { select: { id: true, name: true, email: true, role: true } } },
+  },
+} as const;
+
+export type ComplaintWithToilet = Complaint & {
+  toilet: Toilet;
+  maintenanceTask: MaintenanceTaskSummary | null;
+};
 
 // Same count-based generation as getNextCleanConnectId() in
 // toilet.service.ts, for the same reasons (see that function's
@@ -52,7 +73,7 @@ export async function createComplaint(
       imageUrl,
       status: ComplaintStatus.PENDING,
     },
-    include: { toilet: true },
+    include: COMPLAINT_INCLUDE,
   });
 }
 
@@ -60,7 +81,7 @@ export async function listMyComplaints(userId: string): Promise<ComplaintWithToi
   return prisma.complaint.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
-    include: { toilet: true },
+    include: COMPLAINT_INCLUDE,
   });
 }
 
@@ -70,17 +91,19 @@ export interface ComplaintRequester {
 }
 
 // A complaint is visible to the citizen who filed it, or to an admin
-// — never to any other citizen. Staff access was not part of the
-// explicit Module 5 requirement, so it's intentionally excluded here;
-// see the Module 5 report for how to extend this if staff should also
-// review complaints.
+// — never to any other citizen, and never directly to STAFF through
+// this endpoint. A staff member assigned to a complaint's maintenance
+// task instead gets everything they need (description, category,
+// citizen evidence image, toilet) embedded in the task response from
+// GET /api/maintenance-tasks/:id — see maintenanceTask.service.ts —
+// so this function's access rule is unchanged from Module 5.
 export async function getComplaintById(
   id: string,
   requester: ComplaintRequester
 ): Promise<ComplaintWithToilet> {
   const complaint = await prisma.complaint.findUnique({
     where: { id },
-    include: { toilet: true },
+    include: COMPLAINT_INCLUDE,
   });
 
   if (!complaint) {
@@ -125,7 +148,7 @@ export async function listComplaints(query: ListComplaintsQuery): Promise<Pagina
       skip,
       take: query.limit,
       orderBy: { createdAt: 'desc' },
-      include: { toilet: true },
+      include: COMPLAINT_INCLUDE,
     }),
     prisma.complaint.count({ where }),
   ]);
@@ -152,6 +175,6 @@ export async function updateComplaintStatus(
   return prisma.complaint.update({
     where: { id },
     data: { status },
-    include: { toilet: true },
+    include: COMPLAINT_INCLUDE,
   });
 }

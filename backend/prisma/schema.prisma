@@ -13,8 +13,12 @@ datasource db {
 // QR is generated on the fly client-side from cleanConnectId, see
 // ToiletQrCode.tsx) + missing-toilet registration requests
 // (ToiletRegistrationRequest).
-// Feature models (Rating, Reward, MaintenanceTask, etc.) will be added
-// in later modules once each feature is designed.
+// Module 7 scope: admin-assigned maintenance work (MaintenanceTask),
+// performed by Role.STAFF, that resolves a Complaint.
+// Module 8 scope: citizen star ratings/reviews of a toilet (Review) —
+// independent of Complaint/MaintenanceTask, see Review's own comment.
+// Feature models (Reward, etc.) will be added in later modules once
+// each feature is designed.
 
 enum Role {
   CITIZEN
@@ -32,6 +36,15 @@ model User {
   updatedAt            DateTime                     @updatedAt
   complaints           Complaint[]
   toiletRequests       ToiletRegistrationRequest[]
+  // Module 7: tasks this user has been assigned as STAFF. Only ever
+  // populated for role = STAFF (assignTask validates this — see
+  // maintenanceTask.service.ts), but the relation itself doesn't
+  // restrict role, same as every other relation on this model.
+  assignedTasks        MaintenanceTask[]
+  // Module 8: this user's toilet reviews — in practice only ever
+  // created by CITIZEN (enforced in review.routes.ts), same pattern as
+  // every other role restriction in this schema (not modeled here).
+  reviews              Review[]
 }
 
 // Sourced from the PMC public-toilet CSV dataset (986 rows) OR created
@@ -83,6 +96,11 @@ model Toilet {
   // registration request (Module 6) — null for CSV-imported and
   // admin-direct-created toilets. See ToiletRegistrationRequest below.
   registrationRequest  ToiletRegistrationRequest?
+  // Module 8: citizen ratings/reviews for this toilet. Average rating
+  // and review count are deliberately NOT stored as columns here —
+  // see review.service.ts's getToiletReviews, which computes both
+  // with a live Prisma aggregate so they can never go stale.
+  reviews              Review[]
 
   @@index([ward])
 }
@@ -125,18 +143,24 @@ enum ComplaintStatus {
 // never stored in PostgreSQL. The photo is evidence for an admin to
 // review, nothing more.
 model Complaint {
-  id            String            @id @default(uuid())
-  complaintCode String            @unique
-  toiletId      String
-  toilet        Toilet            @relation(fields: [toiletId], references: [id])
-  userId        String
-  user          User              @relation(fields: [userId], references: [id])
-  description   String
-  category      ComplaintCategory
-  imageUrl      String?
-  status        ComplaintStatus   @default(PENDING)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id              String            @id @default(uuid())
+  complaintCode   String            @unique
+  toiletId        String
+  toilet          Toilet            @relation(fields: [toiletId], references: [id])
+  userId          String
+  user            User              @relation(fields: [userId], references: [id])
+  description     String
+  category        ComplaintCategory
+  imageUrl        String?
+  status          ComplaintStatus   @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  // Module 7: at most one task per complaint — see MaintenanceTask
+  // below. Nullable/optional because most complaints start with none;
+  // set once an admin assigns one, and never replaced afterwards (a
+  // revision cycle reuses the same task, it never creates a second
+  // one — see maintenanceTask.service.ts#assignTask's duplicate check).
+  maintenanceTask MaintenanceTask?
 
   @@index([toiletId])
   @@index([userId])
@@ -186,4 +210,93 @@ model ToiletRegistrationRequest {
 
   @@index([userId])
   @@index([status])
+}
+
+// Module 7: the admin-assigned, staff-performed maintenance work that
+// resolves a Complaint. Deliberately ONE task per complaint
+// (complaintId is @unique below) — a revision cycle reuses this same
+// row (status cycles SUBMITTED -> REVISION_REQUIRED -> IN_PROGRESS ->
+// SUBMITTED again) rather than creating a second task, per Module 7's
+// spec. complaintId/assignedStaffId reference the actual Prisma
+// primary keys (Complaint.id, User.id) — same pattern as every other
+// relation in this schema, never a human-readable code.
+//
+// taskCode (e.g. "TASK-0012") follows the same generated,
+// human-readable pattern as cleanConnectId/complaintCode/requestCode
+// — see utils/taskId.ts + getNextTaskCode in maintenanceTask.service.ts.
+//
+// proofImageUrl is staff's evidence the work was done — a URL only
+// (via imageStorage.service.ts, the exact same Module 5 storage used
+// for Complaint.imageUrl and ToiletRegistrationRequest.imageUrl), and
+// is a completely separate field/photo from Complaint.imageUrl (the
+// citizen's original evidence of the problem). Neither is ever
+// overwritten by the other.
+//
+// completedAt is set when staff submits (status -> SUBMITTED);
+// verifiedAt is set only when admin verifies (status -> VERIFIED). A
+// REVISION_REQUIRED cycle updates adminComment/status but leaves
+// completedAt from the most recent submission in place until the next
+// submit overwrites it.
+enum TaskStatus {
+  ASSIGNED
+  IN_PROGRESS
+  SUBMITTED
+  REVISION_REQUIRED
+  VERIFIED
+}
+
+model MaintenanceTask {
+  id              String     @id @default(uuid())
+  taskCode        String     @unique
+  complaintId     String     @unique
+  complaint       Complaint  @relation(fields: [complaintId], references: [id])
+  assignedStaffId String
+  assignedStaff   User       @relation(fields: [assignedStaffId], references: [id])
+  taskInstruction String
+  status          TaskStatus @default(ASSIGNED)
+  proofImageUrl   String?
+  staffComment    String?
+  adminComment    String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  completedAt     DateTime?
+  verifiedAt      DateTime?
+
+  @@index([assignedStaffId])
+  @@index([status])
+}
+
+// Module 8: a citizen's 1–5 star rating of a registered toilet, with
+// an optional written comment. Deliberately separate from Complaint —
+// a review is subjective experience feedback, not a maintenance
+// report, and never automatically creates or resolves a Complaint
+// (see review.service.ts).
+//
+// userId/toiletId reference the actual Prisma primary keys (User.id,
+// Toilet.id) — same pattern as every other relation in this schema,
+// never cleanConnectId.
+//
+// @@unique([userId, toiletId]) is what actually enforces "one review
+// per citizen per toilet" — not just an application-level check. A
+// citizen who wants to change their rating updates this same row
+// (PUT /api/reviews/:id) rather than creating a second one; this
+// constraint is also exactly what keeps the average rating
+// meaningful (one citizen's opinion can't be counted twice).
+//
+// No imageUrl here on purpose — Module 8 explicitly keeps reviews
+// text-only; photographic evidence remains Complaint.imageUrl /
+// MaintenanceTask.proofImageUrl's job, not this model's.
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  toiletId  String
+  toilet    Toilet   @relation(fields: [toiletId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, toiletId])
+  @@index([toiletId])
 }

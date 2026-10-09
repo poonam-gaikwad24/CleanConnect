@@ -6,6 +6,9 @@ import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import authRoutes from './routes/auth.routes';
 import complaintRoutes from './routes/complaint.routes';
+import maintenanceTaskRoutes from './routes/maintenanceTask.routes';
+import reviewRoutes from './routes/review.routes';
+import staffRoutes from './routes/staff.routes';
 import testRoutes from './routes/test.routes';
 import toiletRoutes from './routes/toilet.routes';
 import toiletRequestRoutes from './routes/toiletRequest.routes';
@@ -37,6 +40,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/toilets', toiletRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/toilet-requests', toiletRequestRoutes);
+app.use('/api/maintenance-tasks', maintenanceTaskRoutes);
+app.use('/api/admin/staff', staffRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // TEMPORARY: remove this mount once RBAC has been manually verified.
 app.use('/api/test', testRoutes);
