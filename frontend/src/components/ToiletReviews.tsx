@@ -8,10 +8,15 @@ import {
   updateReview,
 } from '../api/reviews';
 import { useAuth } from '../context/AuthContext';
+import { canDeleteReview } from '../utils/reviewPermissions';
+import SectionCard from './SectionCard';
 import StarRating from './StarRating';
 
 interface ToiletReviewsProps {
   toiletId: string;
+  // Called after a review is created, edited or deleted, so a sibling
+  // that depends on reviews (the Module 9 health score) can refresh.
+  onReviewsChanged?: () => void;
 }
 
 function timeAgo(dateString: string): string {
@@ -22,7 +27,7 @@ function timeAgo(dateString: string): string {
   return new Date(dateString).toLocaleDateString();
 }
 
-function ToiletReviews({ toiletId }: ToiletReviewsProps) {
+function ToiletReviews({ toiletId, onReviewsChanged }: ToiletReviewsProps) {
   const { user } = useAuth();
   const [data, setData] = useState<ToiletReviewsData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +40,13 @@ function ToiletReviews({ toiletId }: ToiletReviewsProps) {
   const [formComment, setFormComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Deletion state is separate from the form's: the old code reported a
+  // failed delete through formError, which is only rendered inside the
+  // edit form — so the message was never visible. deletingId also lets
+  // each row show its own busy state.
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -74,6 +86,7 @@ function ToiletReviews({ toiletId }: ToiletReviewsProps) {
       }
       setEditing(false);
       load();
+      onReviewsChanged?.();
     } catch {
       setFormError('Could not save your review. Please try again.');
     } finally {
@@ -81,22 +94,33 @@ function ToiletReviews({ toiletId }: ToiletReviewsProps) {
     }
   }
 
-  async function handleDelete() {
-    if (!myReview) return;
-    setSubmitting(true);
+  // One delete path for both a citizen's own review and an admin's
+  // moderation delete. The permission check here only decides whether
+  // to attempt it; the backend is what actually enforces the rule.
+  async function removeReview(review: Review) {
+    if (!canDeleteReview(user, review.userId)) return;
+    if (!window.confirm('Delete this review? This cannot be undone.')) return;
+
+    setDeletingId(review.id);
+    setDeleteError(null);
+
     try {
-      await deleteReview(myReview.id);
+      await deleteReview(review.id);
+      // Reloading re-fetches the list AND the average/count, which the
+      // backend recomputes from the remaining Review rows.
       load();
+      onReviewsChanged?.();
     } catch {
-      setFormError('Could not delete your review.');
+      setDeleteError('Could not delete the review. You may not have permission, or it may already be removed.');
     } finally {
-      setSubmitting(false);
+      setDeletingId(null);
     }
   }
 
+  const isAdmin = user?.role === 'ADMIN';
+
   return (
-    <div className="mt-6 border-t border-slate-200 pt-4">
-      <h2 className="mb-2 text-lg font-bold text-slate-800">Ratings &amp; Reviews</h2>
+    <SectionCard title="Ratings & Reviews" headingId="toilet-reviews-heading">
 
       {loading && <p className="text-sm text-slate-500">Loading reviews…</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -140,8 +164,8 @@ function ToiletReviews({ toiletId }: ToiletReviewsProps) {
                       Edit Review
                     </button>
                     <button
-                      onClick={handleDelete}
-                      disabled={submitting}
+                      onClick={() => removeReview(myReview)}
+                      disabled={deletingId !== null}
                       className="text-sm text-red-600 hover:underline disabled:opacity-50"
                     >
                       Delete Review
@@ -204,22 +228,39 @@ function ToiletReviews({ toiletId }: ToiletReviewsProps) {
             </form>
           )}
 
+          {deleteError && (
+            <p role="alert" className="mb-3 text-sm text-red-600">
+              {deleteError}
+            </p>
+          )}
+
           {data.reviews.length > 0 && (
             <ul className="space-y-3">
               {data.reviews.map((review) => (
                 <li key={review.id} className="rounded border border-slate-200 bg-white p-3">
                   <StarRating value={review.rating} />
                   {review.comment && <p className="mt-1 text-sm text-slate-700">{review.comment}</p>}
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-500">
                     {review.reviewerName} · {timeAgo(review.createdAt)}
                   </p>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => removeReview(review)}
+                      disabled={deletingId !== null}
+                      aria-label={`Delete review by ${review.reviewerName} (admin)`}
+                      className="mt-2 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                    >
+                      {deletingId === review.id ? 'Deleting…' : 'Delete review (admin)'}
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
           )}
         </>
       )}
-    </div>
+    </SectionCard>
   );
 }
 
