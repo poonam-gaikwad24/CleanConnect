@@ -1,0 +1,376 @@
+--- a/backend/src/utils/toiletHealth.ts
++++ b/backend/src/utils/toiletHealth.ts
+@@ -5,59 +5,81 @@
+ // unit-testable, explainable in a demo, and reusable by Module 10
+ // (admin analytics) without duplicating any rules.
+ //
++// The score is an ESTIMATE built from citizen reviews, complaints and
++// admin-verified maintenance records. It is not an inspection and does
++// not prove the toilet's actual physical condition.
++//
+ // ─────────────────────────────────────────────────────────────────
+-// THE FORMULA (0–100)
++// THE FORMULA (0–100)            [revision 2 — weights 50 / 40 / 10]
++//
++//   score = OPEN ISSUES (0–50) + CITIZEN EXPERIENCE (0–40)
++//         + VERIFIED MAINTENANCE (0–10)
++//
++// 0. CITIZEN SATISFACTION & TRUST (computed first; used by 1 and 3)
++//    The average star rating is "shrunk" toward a neutral 3.0 as if 3
++//    neutral reviews already existed, so one review cannot dominate:
++//      adjusted = (n × avg + 3 × 3.0) / (n + 3)         (no reviews ⇒ 3.0)
++//    trust = clamp((adjusted − 1) / 2, 0, 1)            3★ or better ⇒ 100%,
++//                                                       2★ ⇒ 50%, 1★ ⇒ 0%
++//    WHY: "no open complaints" and "past fixes" are INDIRECT evidence
++//    (absence of reports). Unhappy citizens do not always file a
++//    complaint, so that indirect evidence is only trusted in proportion
++//    to how satisfied citizens actually are. In revision 1 this credit
++//    was unconditional, so even 50 reviews of 1★ with no complaints
++//    still scored 61 ("Fair").
++//
++// 1. OPEN ISSUES — 50 points.
++//    penalty = Σ categoryBase × stageFactor over complaints that are not
++//    RESOLVED (capped at 50), then
++//      points = (50 − penalty) × trust
++//    categoryBase: WATER_SHORTAGE 20, BROKEN_INFRASTRUCTURE 20,
++//                  CLEANLINESS 15, OTHER 8
++//      (no water / broken fixtures make a toilet unusable; dirt makes it
++//       unpleasant but usable; OTHER is unspecified)
++//    stageFactor — how far the fix has progressed, read from the
++//    complaint's MaintenanceTask (1:1 with the complaint):
++//       nothing done yet (PENDING, no task)       1.0
++//       complaint IN_PROGRESS but no task         0.8
++//       task ASSIGNED                             0.8
++//       task REVISION_REQUIRED (work rejected)    0.8
++//       task IN_PROGRESS                          0.6
++//       task SUBMITTED (done, not yet verified)   0.4
++//       task VERIFIED but complaint still open    1.0  (inconsistent
++//          state — e.g. an admin re-opened it — earns no credit)
++//    Repeat reports in the same category are probably the same physical
++//    problem: within a category only the largest penalty counts in full
++//    and each further one adds 25%.
++//
++// 2. CITIZEN EXPERIENCE — 40 points.
++//      points = 40 × (adjusted − 1) / 4
++//    5★ ⇒ 40, 3★ ⇒ 20, 1★ ⇒ 0 (with many reviews). No reviews ⇒ the
++//    neutral 20, and the response says so.
+ //
+-//   score = OPEN ISSUES (0–60) + CITIZEN EXPERIENCE (0–30)
+-//         + VERIFIED MAINTENANCE BONUS (0–10)
++// 3. VERIFIED MAINTENANCE — up to 10 points.
++//      raw   = 5 per complaint that is RESOLVED *and* whose task was
++//              VERIFIED by an admin (max 10)
++//      points = raw × trust × (50 − penalty) / 50
++//    The bonus shrinks as unresolved problems grow (it cannot conceal
++//    them) and as citizen satisfaction falls. A manually-RESOLVED
++//    complaint with no verified task removes its penalty but earns NO
++//    bonus: "resolved" is never assumed to mean "verified".
+ //
+-// 1. OPEN ISSUES — 60 points, the largest share on purpose.
+-//    Start at 60 ("no known open problem") and subtract a penalty for
+-//    every complaint that is not RESOLVED:
+-//      penalty = categoryBase × stageFactor
+-//      categoryBase: WATER_SHORTAGE 20, BROKEN_INFRASTRUCTURE 20,
+-//                    CLEANLINESS 15, OTHER 8
+-//        (no water / broken fixtures make a toilet unusable;
+-//         dirt makes it unpleasant but usable; OTHER is unspecified)
+-//      stageFactor (how far the fix has progressed — taken from the
+-//      complaint's MaintenanceTask, which is 1:1 with the complaint):
+-//         nothing done yet (PENDING, no task)       1.0
+-//         complaint IN_PROGRESS but no task         0.8
+-//         task ASSIGNED                             0.8
+-//         task REVISION_REQUIRED (work rejected)    0.8
+-//         task IN_PROGRESS                          0.6
+-//         task SUBMITTED (done, not yet verified)   0.4
+-//         task VERIFIED but complaint still open    1.0  (inconsistent
+-//            state — e.g. an admin re-opened it — earns no credit)
+-//    Repeat reports in the same category are probably the same
+-//    physical problem, so within a category only the largest penalty
+-//    counts in full and each further one adds 25%.
+-//    Total penalty is capped at 60 (this component never goes below 0).
+-//
+-// 2. CITIZEN EXPERIENCE — 30 points. Uses the average star rating but
+-//    "shrunk" toward a neutral 3.0 as if 3 neutral reviews already
+-//    existed, so one enthusiastic review cannot dominate:
+-//      adjusted = (n × avg + 3 × 3.0) / (n + 3)
+-//      points   = 30 × (adjusted − 1) / 4
+-//    5★ ⇒ 30, 3★ ⇒ 15, 1★ ⇒ 0 (with many reviews). No reviews ⇒ the
+-//    neutral 15, and the response says so.
+-//
+-// 3. VERIFIED MAINTENANCE BONUS — up to 10 points, +5 for each
+-//    complaint that is RESOLVED *and* whose task was VERIFIED by an
+-//    admin (max 2 count). Only verified fixes earn it, so the top
+-//    10 points can never be reached by the absence of complaints.
+-//
+-// NOT DOUBLE COUNTED: a complaint and its task are ONE problem. An
+-// open complaint contributes only through OPEN ISSUES; a resolved one
+-// only through the bonus; reviews are never read for complaint text.
++// NOT DOUBLE COUNTED: a complaint and its task are ONE problem. An open
++// complaint contributes only through its penalty; a resolved one only
++// through the bonus; reviews are never read for complaint text.
+ //
+-// NO CLOCK: age of a complaint is deliberately NOT used, so the same
+-// database state always yields the same score at any time.
++// NO CLOCK: complaint age is deliberately NOT used, so the same database
++// state always yields the same score at any time.
++//
++// ROUNDING: each factor is rounded half-up to one decimal (integer
++// tenths, with a tiny tolerance so binary floating-point error cannot
++// flip an exact .x5); score = round-half-up(sum of those tenths ÷ 10).
++// The factors you see always add up to the score you see.
+ //
+ // DATA SUFFICIENCY — evidence = reviews + complaints:
+-//    0      ⇒ INSUFFICIENT: score is null (no false precision)
+-//    1–2    ⇒ LIMITED: score shown, flagged as a rough indication
+-//    3+     ⇒ SUFFICIENT
++//    0                       ⇒ INSUFFICIENT: score is null (no false precision)
++//    1–2, OR no reviews yet  ⇒ LIMITED: score shown, flagged as a rough estimate
++//    3+ with ≥1 review       ⇒ SUFFICIENT
+ //
+ // LABELS: GOOD ≥ 75, FAIR 50–74, NEEDS_ATTENTION < 50.
+ // ─────────────────────────────────────────────────────────────────
+@@ -79,8 +101,8 @@
+   | 'VERIFIED';
+ 
+ export const HEALTH_CONFIG = {
+-  MAX_OPEN_ISSUES: 60,
+-  MAX_EXPERIENCE: 30,
++  MAX_OPEN_ISSUES: 50,
++  MAX_EXPERIENCE: 40,
+   MAX_VERIFIED_BONUS: 10,
+   CATEGORY_PENALTY: {
+     WATER_SHORTAGE: 20,
+@@ -102,6 +124,7 @@
+   PRIOR_WEIGHT: 3,
+   BONUS_PER_VERIFIED_FIX: 5,
+   LIMITED_EVIDENCE_BELOW: 3,
++  MIN_REVIEWS_FOR_SUFFICIENT: 1,
+   GOOD_MIN: 75,
+   FAIR_MIN: 50,
+ } as const;
+@@ -166,10 +189,18 @@
+   return `${n} ${word}${n === 1 ? '' : 's'}`;
+ }
+ 
+-// Points are carried as integer tenths so rounding never depends on
+-// floating-point representation.
++// Points are carried as integer tenths. The 1e-7 tolerance stops binary
++// floating-point error from turning an exact half (e.g. 8.75) into
++// 8.749999999999998 and rounding it the wrong way.
+ function toTenths(points: number): number {
+-  return Math.round(points * 10);
++  return Math.round(points * 10 + 1e-7);
++}
++
++// Share (0–1) of the indirect "absence of problems" evidence we trust,
++// based on the shrunk average rating. See the formula notes above.
++export function trustFromRating(adjusted: number): number {
++  const { PRIOR_MEAN } = HEALTH_CONFIG;
++  return Math.min(1, Math.max(0, (adjusted - 1) / (PRIOR_MEAN - 1)));
+ }
+ 
+ export function labelForScore(score: number): HealthLabel {
+@@ -196,20 +227,53 @@
+   }
+ }
+ 
++// ── component 2 (computed first): citizen experience & trust ──────
++
++interface ExperienceResult {
++  tenths: number;
++  adjusted: number; // shrunk average rating, 1–5 (3.0 when there are no reviews)
++  trust: number; // 0–1, see trustFromRating
++  detail: string;
++}
++
++function computeExperience(reviewCount: number, averageRating: number | null): ExperienceResult {
++  const { PRIOR_MEAN, PRIOR_WEIGHT, MAX_EXPERIENCE } = HEALTH_CONFIG;
++
++  if (reviewCount === 0 || averageRating === null) {
++    return {
++      tenths: toTenths(MAX_EXPERIENCE * ((PRIOR_MEAN - 1) / 4)),
++      adjusted: PRIOR_MEAN,
++      trust: 1,
++      detail: 'No reviews yet — a neutral value is used until citizens rate this toilet.',
++    };
++  }
++
++  const avg = Math.min(5, Math.max(1, averageRating));
++  const adjusted = (reviewCount * avg + PRIOR_WEIGHT * PRIOR_MEAN) / (reviewCount + PRIOR_WEIGHT);
++
++  return {
++    tenths: toTenths(MAX_EXPERIENCE * ((adjusted - 1) / 4)),
++    adjusted,
++    trust: trustFromRating(adjusted),
++    detail:
++      `Average ${avg.toFixed(1)}★ from ${plural(reviewCount, 'review')}.` +
++      (reviewCount < 10 ? ' With few reviews, the average is weighted toward neutral.' : ''),
++  };
++}
++
+ // ── component 1: open issues ──────────────────────────────────────
+ 
+ interface OpenIssuesResult {
+   tenths: number;
++  // Share of the open-issues component that is still intact (0–1)
++  // before trust is applied: (50 − penalty) / 50.
++  remaining: number;
+   detail: string;
+ }
+ 
+-function computeOpenIssues(open: OpenComplaintInput[]): OpenIssuesResult {
++function computeOpenIssues(open: OpenComplaintInput[], trust: number): OpenIssuesResult {
+   const max = HEALTH_CONFIG.MAX_OPEN_ISSUES;
+ 
+-  if (open.length === 0) {
+-    return { tenths: toTenths(max), detail: 'No open complaints.' };
+-  }
+-
+   const byCategory = new Map<ComplaintCategoryName, number[]>();
+   for (const c of open) {
+     const base =
+@@ -226,6 +290,21 @@
+     const [largest, ...rest] = list;
+     penalty += largest + HEALTH_CONFIG.REPEAT_REPORT_WEIGHT * rest.reduce((s, p) => s + p, 0);
+   }
++  penalty = Math.min(max, penalty);
++
++  const remainingPoints = max - penalty;
++  const trustNote =
++    trust < 1
++      ? ` Credit counted at ${Math.round(trust * 100)}% because citizen ratings are low.`
++      : '';
++
++  if (open.length === 0) {
++    return {
++      tenths: toTenths(remainingPoints * trust),
++      remaining: 1,
++      detail: 'No open complaints.' + trustNote,
++    };
++  }
+ 
+   const parts = [...byCategory.entries()]
+     .sort(([a], [b]) => a.localeCompare(b))
+@@ -240,60 +319,44 @@
+   if (underway > 0) progress.push(`${underway} with staff assigned or working`);
+   if (awaiting > 0) progress.push(`${awaiting} awaiting admin verification`);
+ 
+-  const detail =
+-    `${plural(open.length, 'open complaint')}: ${parts.join(', ')}.` +
+-    (progress.length > 0 ? ` ${progress.join('; ')}.` : '');
+-
+   return {
+-    tenths: toTenths(Math.max(0, max - penalty)),
+-    detail,
+-  };
+-}
+-
+-// ── component 2: citizen experience ───────────────────────────────
+-
+-interface ExperienceResult {
+-  tenths: number;
+-  detail: string;
+-}
+-
+-function computeExperience(reviewCount: number, averageRating: number | null): ExperienceResult {
+-  const { PRIOR_MEAN, PRIOR_WEIGHT, MAX_EXPERIENCE } = HEALTH_CONFIG;
+-
+-  if (reviewCount === 0 || averageRating === null) {
+-    return {
+-      tenths: toTenths(MAX_EXPERIENCE * ((PRIOR_MEAN - 1) / 4)),
+-      detail: 'No reviews yet — a neutral value is used until citizens rate this toilet.',
+-    };
+-  }
+-
+-  const avg = Math.min(5, Math.max(1, averageRating));
+-  const adjusted = (reviewCount * avg + PRIOR_WEIGHT * PRIOR_MEAN) / (reviewCount + PRIOR_WEIGHT);
+-  const points = MAX_EXPERIENCE * ((adjusted - 1) / 4);
+-
+-  return {
+-    tenths: toTenths(points),
++    tenths: toTenths(remainingPoints * trust),
++    remaining: remainingPoints / max,
+     detail:
+-      `Average ${avg.toFixed(1)}★ from ${plural(reviewCount, 'review')}.` +
+-      (reviewCount < 10 ? ' With few reviews, the average is weighted toward neutral.' : ''),
++      `${plural(open.length, 'open complaint')}: ${parts.join(', ')}.` +
++      (progress.length > 0 ? ` ${progress.join('; ')}.` : '') +
++      trustNote,
+   };
+ }
+ 
+-// ── component 3: verified maintenance bonus ───────────────────────
++// ── component 3: verified maintenance ─────────────────────────────
+ 
+-function computeVerifiedBonus(verifiedFixes: number): { tenths: number; detail: string } {
++function computeVerifiedBonus(
++  verifiedFixes: number,
++  trust: number,
++  remaining: number
++): { tenths: number; detail: string } {
+   if (verifiedFixes === 0) {
+     return { tenths: 0, detail: 'No admin-verified fixes recorded yet.' };
+   }
+ 
+-  const points = Math.min(
++  const raw = Math.min(
+     HEALTH_CONFIG.MAX_VERIFIED_BONUS,
+     verifiedFixes * HEALTH_CONFIG.BONUS_PER_VERIFIED_FIX
+   );
++  const multiplier = trust * remaining;
++
++  const reasons: string[] = [];
++  if (trust < 1) reasons.push('citizen ratings are low');
++  if (remaining < 1) reasons.push('complaints are still open');
+ 
+   return {
+-    tenths: toTenths(points),
+-    detail: `${plural(verifiedFixes, 'complaint')} resolved and verified by an admin.`,
++    tenths: toTenths(raw * multiplier),
++    detail:
++      `${plural(verifiedFixes, 'complaint')} resolved and verified by an admin.` +
++      (multiplier < 1
++        ? ` Counted at ${Math.round(multiplier * 100)}% because ${reasons.join(' and ')}.`
++        : ''),
+   };
+ }
+ 
+@@ -327,20 +390,33 @@
+     };
+   }
+ 
+-  const issues = computeOpenIssues(open);
+   const experience = computeExperience(reviewCount, averageRating);
+-  const bonus = computeVerifiedBonus(verifiedFixes);
++  const issues = computeOpenIssues(open, experience.trust);
++  const bonus = computeVerifiedBonus(verifiedFixes, experience.trust, issues.remaining);
+ 
+   const totalTenths = issues.tenths + experience.tenths + bonus.tenths;
+   const score = Math.min(100, Math.max(0, Math.round(totalTenths / 10)));
+ 
+   const confidence: HealthConfidence =
+-    evidenceCount < HEALTH_CONFIG.LIMITED_EVIDENCE_BELOW ? 'LIMITED' : 'SUFFICIENT';
++    evidenceCount < HEALTH_CONFIG.LIMITED_EVIDENCE_BELOW ||
++    reviewCount < HEALTH_CONFIG.MIN_REVIEWS_FOR_SUFFICIENT
++      ? 'LIMITED'
++      : 'SUFFICIENT';
+ 
+   const notes: string[] = [];
+-  if (confidence === 'LIMITED') {
++  if (evidenceCount < HEALTH_CONFIG.LIMITED_EVIDENCE_BELOW) {
++    notes.push(
++      `Based on limited information (${plural(evidenceCount, 'record')}). Treat this score as a rough estimate.`
++    );
++  }
++  if (reviewCount === 0) {
++    notes.push('No citizen reviews yet, so this estimate rests on complaint records only.');
++  }
++  if (experience.trust < 1) {
+     notes.push(
+-      `Based on limited information (${plural(evidenceCount, 'record')}). Treat this score as a rough indication.`
++      `Citizen ratings are below average, so credit for having no open complaints and for past fixes is reduced to ${Math.round(
++        experience.trust * 100
++      )}%.`
+     );
+   }
+   if (totalComplaints === 0) {

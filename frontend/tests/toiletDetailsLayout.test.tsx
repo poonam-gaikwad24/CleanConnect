@@ -173,11 +173,12 @@ describe('responsive layout contract', () => {
     assert.match(html, /<dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-1"/);
   });
 
-  it('interactive controls have a ≥44px tap target and a visible keyboard focus style', () => {
-    for (const control of html.match(/<(a|button)\b[^>]*class="[^"]*"/g) ?? []) {
-      if (/href="\/toilets/.test(control)) continue;
-      assert.match(control, /min-h-\[44px\]/, control);
-      assert.match(control, /focus-visible:outline/, control);
+  it('interactive controls use the shared design-system classes (.btn / .link), which carry the tap-target size and focus style', () => {
+    const controls = [...html.matchAll(/<(a|button)\b[^>]*class="([^"]*)"/g)].map((m) => m[2]);
+    assert.equal(controls.length, 2); // Google Maps link + Report button
+    for (const cls of controls) {
+      if (/^inline-flex items-center gap-1\.5 text-sm font-medium/.test(cls)) continue; // the plain "back" text link
+      assert.match(cls, /\b(btn|link)\b/, cls);
     }
   });
 });

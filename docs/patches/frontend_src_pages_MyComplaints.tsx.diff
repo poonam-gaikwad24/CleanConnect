@@ -1,0 +1,102 @@
+--- a/frontend/src/pages/MyComplaints.tsx
++++ b/frontend/src/pages/MyComplaints.tsx
+@@ -2,6 +2,13 @@
+ import { Link } from 'react-router-dom';
+ import { Complaint, listMyComplaints } from '../api/complaints';
+ import { categoryLabel, statusLabel } from '../utils/complaintLabels';
++import { CategoryBadge, ComplaintStatusBadge } from '../components/StatusBadges';
++import Alert from '../components/ui/Alert';
++import { ClipboardIcon, PlusIcon } from '../components/ui/icons';
++import ListCard from '../components/ui/ListCard';
++import PageContainer from '../components/ui/PageContainer';
++import PageHeader from '../components/ui/PageHeader';
++import { EmptyState, LoadingState } from '../components/ui/States';
+ 
+ function MyComplaints() {
+   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
+@@ -16,47 +23,55 @@
+   }, []);
+ 
+   return (
+-    <div className="mx-auto max-w-3xl p-6">
+-      <div className="mb-4 flex items-center justify-between">
+-        <h1 className="text-2xl font-bold text-slate-800">My Complaints</h1>
+-        <Link
+-          to="/complaints/create"
+-          className="rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"
+-        >
+-          Report an Issue
+-        </Link>
+-      </div>
++    <PageContainer>
++      <PageHeader
++        title="My Complaints"
++        subtitle="Issues you have reported, and where each one stands."
++        actions={
++          <Link to="/complaints/create" className="btn btn-primary">
++            <PlusIcon />
++            Report an Issue
++          </Link>
++        }
++      />
+ 
+-      {loading && <p className="text-slate-500">Loading…</p>}
+-      {error && <p className="text-red-600">{error}</p>}
++      {loading && <LoadingState label="Loading your complaints…" />}
++      {error && <Alert tone="error">{error}</Alert>}
+ 
+       {complaints && complaints.length === 0 && (
+-        <p className="text-slate-500">You haven't reported any issues yet.</p>
++        <EmptyState
++          icon={<ClipboardIcon className="h-5 w-5" />}
++          title="You haven't reported any issues yet."
++          description="When you report a problem with a toilet, you can follow its progress here."
++          action={
++            <Link to="/complaints/create" className="btn btn-primary">
++              Report an Issue
++            </Link>
++          }
++        />
+       )}
+ 
+       {complaints && complaints.length > 0 && (
+-        <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
++        <ul className="grid gap-3">
+           {complaints.map((complaint) => (
+-            <li key={complaint.id} className="p-4 hover:bg-slate-50">
+-              <Link to={`/complaints/${complaint.id}`} className="block">
+-                <p className="text-xs font-mono uppercase tracking-wide text-slate-400">
+-                  Complaint #{complaint.complaintCode}
+-                </p>
+-                <p className="font-medium text-slate-800">
+-                  Toilet: {complaint.toilet.cleanConnectId ?? 'ID pending'} — {complaint.toilet.location}
+-                </p>
+-                <p className="text-sm text-slate-500">
+-                  Category: {categoryLabel(complaint.category)} · Status: {statusLabel(complaint.status)}
+-                </p>
+-                <p className="text-xs text-slate-400">
+-                  {new Date(complaint.createdAt).toLocaleDateString()}
+-                </p>
+-              </Link>
++            <li key={complaint.id}>
++              <ListCard
++                to={`/complaints/${complaint.id}`}
++                eyebrow={`Complaint #${complaint.complaintCode}`}
++                title={`Toilet: ${complaint.toilet.cleanConnectId ?? 'ID pending'} — ${complaint.toilet.location}`}
++                meta={<p>Reported {new Date(complaint.createdAt).toLocaleDateString()}</p>}
++                badges={
++                  <>
++                    <ComplaintStatusBadge status={complaint.status} />
++                    <CategoryBadge category={complaint.category} />
++                  </>
++                }
++              />
+             </li>
+           ))}
+         </ul>
+       )}
+-    </div>
++    </PageContainer>
+   );
+ }
+ 

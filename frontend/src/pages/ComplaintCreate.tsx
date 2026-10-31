@@ -4,6 +4,12 @@ import { getToiletById, listToilets, Toilet } from '../api/toilets';
 import { createComplaint, ComplaintCategory } from '../api/complaints';
 import { buildGoogleMapsSearchUrl } from '../utils/googleMapsLink';
 import { ALL_CATEGORIES, categoryLabel } from '../utils/complaintLabels';
+import Alert from '../components/ui/Alert';
+import Card from '../components/ui/Card';
+import Field from '../components/ui/Field';
+import { CheckCircleIcon, ExternalLinkIcon, SearchIcon } from '../components/ui/icons';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
 
 const MAX_IMAGE_MB = 5;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -112,66 +118,82 @@ function ComplaintCreate() {
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-xl p-6">
-        <div className="rounded border border-green-200 bg-green-50 p-6 text-center">
-          <p className="text-lg font-semibold text-green-800">Complaint submitted successfully</p>
-          <p className="mt-2 text-sm text-green-700">Complaint ID: {submitted.complaintCode}</p>
-          <p className="text-sm text-green-700">Status: Pending</p>
-          <button
-            className="mt-4 rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"
-            onClick={() => navigate('/my-complaints')}
-          >
+      <PageContainer size="narrow">
+        <Card className="p-8 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-800">
+            <CheckCircleIcon className="h-6 w-6" />
+          </div>
+          <h1 className="text-xl font-bold text-slate-900">Complaint submitted successfully</h1>
+          <p className="mt-2 text-sm text-slate-700">
+            Complaint ID: <span className="font-mono font-semibold">{submitted.complaintCode}</span>
+          </p>
+          <p className="text-sm text-slate-700">Status: Pending</p>
+          <button className="btn btn-primary mt-5" onClick={() => navigate('/my-complaints')}>
             View my complaints
           </button>
-        </div>
-      </div>
+        </Card>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="mx-auto max-w-xl p-6">
-      <h1 className="mb-4 text-2xl font-bold text-slate-800">Report an Issue</h1>
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Report an Issue"
+        subtitle="Tell us what is wrong so an administrator can assign it to maintenance staff."
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">1. Select toilet</label>
+        <Card>
+          <h2 className="mb-3 text-base font-semibold text-slate-900">Toilet</h2>
+          <label htmlFor="toilet-search" className="label">
+            1. Select toilet
+          </label>
 
           {selectedToilet ? (
-            <div className="rounded border border-slate-200 bg-white p-3">
-              <p className="text-xs font-mono uppercase tracking-wide text-slate-400">
+            <div className="rounded-md border border-brand-200 bg-brand-50 p-3">
+              <p className="font-mono text-xs uppercase tracking-wide text-slate-600">
                 {selectedToilet.cleanConnectId ?? 'ID pending'}
               </p>
-              <p className="font-medium text-slate-800">{selectedToilet.location}</p>
-              <p className="text-sm text-slate-500">
+              <p className="font-semibold text-slate-900">{selectedToilet.location}</p>
+              <p className="text-sm text-slate-700">
                 {selectedToilet.ward !== null ? `Ward ${selectedToilet.ward}` : 'Ward not recorded'}
               </p>
-              <a
-                href={buildGoogleMapsSearchUrl(selectedToilet.location)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1 inline-block text-sm text-blue-600 hover:underline"
-              >
-                View on Google Maps
-              </a>
-              <button
-                type="button"
-                className="ml-3 text-sm text-slate-500 underline"
-                onClick={() => setSelectedToilet(null)}
-              >
-                Change
-              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <a
+                  href={buildGoogleMapsSearchUrl(selectedToilet.location)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link inline-flex items-center gap-1 text-sm no-underline hover:underline"
+                >
+                  View on Google Maps
+                  <ExternalLinkIcon />
+                  <span className="sr-only">(opens in a new tab)</span>
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setSelectedToilet(null)}
+                >
+                  Change
+                </button>
+              </div>
             </div>
           ) : (
             <>
-              <input
-                type="text"
-                placeholder="Search by CleanConnect ID, address, or area…"
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input
+                  id="toilet-search"
+                  type="text"
+                  placeholder="Search by CleanConnect ID, address, or area…"
+                  className="field pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
               {results.length > 0 && (
-                <ul className="mt-2 divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+                <ul className="mt-2 divide-y divide-slate-200 overflow-hidden rounded-md border border-slate-200 bg-white">
                   {results.map((toilet) => (
                     <li key={toilet.id}>
                       <button
@@ -183,93 +205,91 @@ function ComplaintCreate() {
                           setSearch('');
                         }}
                       >
-                        <p className="text-xs font-mono uppercase tracking-wide text-slate-400">
+                        <p className="font-mono text-xs uppercase tracking-wide text-slate-600">
                           {toilet.cleanConnectId ?? 'ID pending'}
                         </p>
-                        <p className="text-sm font-medium text-slate-800">{toilet.location}</p>
+                        <p className="text-sm font-medium text-slate-900">{toilet.location}</p>
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-slate-700">
                 Toilet not listed?{' '}
-                <Link to="/toilet-requests/create" className="text-blue-600 hover:underline">
+                <Link to="/toilet-requests/create" className="link">
                   Request registration
                 </Link>
               </p>
             </>
           )}
-        </div>
+        </Card>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="category">
-            2. Select issue category
-          </label>
-          <select
-            id="category"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as ComplaintCategory | '')}
-            required
+        <Card>
+          <h2 className="mb-3 text-base font-semibold text-slate-900">Issue details</h2>
+          <div className="space-y-4">
+            <Field label="2. Select issue category">
+              <select
+                id="category"
+                className="field"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as ComplaintCategory | '')}
+                required
+              >
+                <option value="" disabled>
+                  Select a category…
+                </option>
+                {ALL_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {categoryLabel(c)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="3. Describe the problem" help="At least 10 characters, up to 1000.">
+              <textarea
+                id="description"
+                rows={4}
+                className="field"
+                placeholder="e.g. No water has been available since morning."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                minLength={10}
+                maxLength={1000}
+                required
+              />
+            </Field>
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-base font-semibold text-slate-900">Photo evidence</h2>
+          <Field
+            label="4. Photo evidence (optional)"
+            error={imageError}
+            help={`JPEG, PNG or WEBP, up to ${MAX_IMAGE_MB}MB. This photo is evidence for the admin reviewing your complaint — it isn't analyzed automatically.`}
           >
-            <option value="" disabled>
-              Select a category…
-            </option>
-            {ALL_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {categoryLabel(c)}
-              </option>
-            ))}
-          </select>
-        </div>
+            <input
+              id="image"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="block w-full text-sm text-slate-800 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-50"
+              onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
+            />
+          </Field>
+        </Card>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="description">
-            3. Describe the problem
-          </label>
-          <textarea
-            id="description"
-            rows={4}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            placeholder="e.g. No water has been available since morning."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            minLength={10}
-            maxLength={1000}
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="image">
-            4. Photo evidence (optional)
-          </label>
-          <input
-            id="image"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="block w-full text-sm"
-            onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
-          />
-          <p className="mt-1 text-xs text-slate-400">
-            JPEG, PNG or WEBP, up to {MAX_IMAGE_MB}MB. This photo is evidence for the admin
-            reviewing your complaint — it isn't analyzed automatically.
-          </p>
-          {imageError && <p className="mt-1 text-sm text-red-600">{imageError}</p>}
-        </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <Alert tone="error">{error}</Alert>}
 
         <button
           type="submit"
           disabled={submitting || !selectedToilet || !category}
-          className="w-full rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
+          className="btn btn-primary btn-block"
         >
           {submitting ? 'Submitting…' : 'Submit complaint'}
         </button>
       </form>
-    </div>
+    </PageContainer>
   );
 }
 

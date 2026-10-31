@@ -1,0 +1,142 @@
+--- a/frontend/src/pages/AdminToiletRequests.tsx
++++ b/frontend/src/pages/AdminToiletRequests.tsx
+@@ -6,6 +6,15 @@
+   RequestStatus,
+ } from '../api/toiletRequests';
+ import { ALL_REQUEST_STATUSES, requestStatusLabel } from '../utils/requestLabels';
++import { RequestStatusBadge } from '../components/StatusBadges';
++import Alert from '../components/ui/Alert';
++import Badge from '../components/ui/Badge';
++import { PinIcon } from '../components/ui/icons';
++import ListCard from '../components/ui/ListCard';
++import PageContainer from '../components/ui/PageContainer';
++import PageHeader from '../components/ui/PageHeader';
++import Pagination from '../components/ui/Pagination';
++import { EmptyState, LoadingState } from '../components/ui/States';
+ 
+ function AdminToiletRequests() {
+   const [result, setResult] = useState<PaginatedToiletRequests | null>(null);
+@@ -25,12 +34,19 @@
+   }, [page, status]);
+ 
+   return (
+-    <div className="mx-auto max-w-3xl p-6">
+-      <h1 className="mb-4 text-2xl font-bold text-slate-800">Toilet Registration Requests</h1>
+-
+-      <div className="mb-4">
++    <PageContainer>
++      <PageHeader
++        title="Toilet Registration Requests"
++        subtitle="Citizen requests to add a toilet that is missing from the directory."
++      />
++
++      <div className="card mb-6 p-4">
++        <label htmlFor="filter-request-status" className="label">
++          Status
++        </label>
+         <select
+-          className="rounded border border-slate-300 px-3 py-2 text-sm"
++          id="filter-request-status"
++          className="field sm:w-60"
+           value={status}
+           onChange={(e) => {
+             setStatus(e.target.value as RequestStatus | '');
+@@ -46,58 +62,53 @@
+         </select>
+       </div>
+ 
+-      {loading && <p className="text-slate-500">Loading…</p>}
+-      {error && <p className="text-red-600">{error}</p>}
++      {loading && <LoadingState label="Loading requests…" />}
++      {error && <Alert tone="error">{error}</Alert>}
+ 
+       {result && (
+         <>
+-          <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+-            {result.data.map((request) => (
+-              <li key={request.id} className="p-4 hover:bg-slate-50">
+-                <Link to={`/toilet-requests/${request.id}`} className="block">
+-                  <p className="text-xs font-mono uppercase tracking-wide text-slate-400">
+-                    Request #{request.requestCode}
+-                  </p>
+-                  <p className="font-medium text-slate-800">{request.location}</p>
+-                  <p className="text-sm text-slate-500">{request.landmark ?? 'No landmark given'}</p>
+-                  <p className="text-sm text-slate-500">
+-                    Status: {requestStatusLabel(request.status)}
+-                    {request.imageUrl ? ' · Has photo evidence' : ''}
+-                  </p>
+-                  <p className="text-xs text-slate-400">
+-                    {new Date(request.createdAt).toLocaleDateString()}
+-                  </p>
+-                </Link>
+-              </li>
+-            ))}
+-          </ul>
+-
+-          {result.data.length === 0 && (
+-            <p className="mt-4 text-slate-500">No requests match this filter.</p>
++          {result.data.length === 0 ? (
++            <EmptyState
++              icon={<PinIcon className="h-5 w-5" />}
++              title="No requests match this filter."
++              description="Try a different status."
++            />
++          ) : (
++            <ul className="grid gap-3">
++              {result.data.map((request) => (
++                <li key={request.id}>
++                  <ListCard
++                    to={`/toilet-requests/${request.id}`}
++                    eyebrow={`Request #${request.requestCode}`}
++                    title={request.location}
++                    meta={
++                      <>
++                        <p>{request.landmark ?? 'No landmark given'}</p>
++                        <p>Requested {new Date(request.createdAt).toLocaleDateString()}</p>
++                      </>
++                    }
++                    badges={
++                      <>
++                        <RequestStatusBadge status={request.status} />
++                        {request.imageUrl && <Badge tone="neutral">Photo attached</Badge>}
++                      </>
++                    }
++                  />
++                </li>
++              ))}
++            </ul>
+           )}
+ 
+-          <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+-            <button
+-              className="rounded border border-slate-300 px-3 py-1 disabled:opacity-40"
+-              disabled={page <= 1}
+-              onClick={() => setPage((p) => p - 1)}
+-            >
+-              Previous
+-            </button>
+-            <span>
+-              Page {result.page} of {result.totalPages} ({result.total} total)
+-            </span>
+-            <button
+-              className="rounded border border-slate-300 px-3 py-1 disabled:opacity-40"
+-              disabled={page >= result.totalPages}
+-              onClick={() => setPage((p) => p + 1)}
+-            >
+-              Next
+-            </button>
+-          </div>
++          <Pagination
++            page={result.page}
++            totalPages={result.totalPages}
++            total={result.total}
++            onPrevious={() => setPage((p) => p - 1)}
++            onNext={() => setPage((p) => p + 1)}
++          />
+         </>
+       )}
+-    </div>
++    </PageContainer>
+   );
+ }
+ 

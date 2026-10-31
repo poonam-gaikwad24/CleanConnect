@@ -1,0 +1,43 @@
+--- a/frontend/src/components/ProtectedRoute.tsx
++++ b/frontend/src/components/ProtectedRoute.tsx
+@@ -1,5 +1,8 @@
++import { Link, Navigate } from 'react-router-dom';
++import Alert from './ui/Alert';
++import PageContainer from './ui/PageContainer';
++import { LoadingState } from './ui/States';
+ import { ReactNode } from 'react';
+-import { Navigate } from 'react-router-dom';
+ import { Role } from '../api/auth';
+ import { useAuth } from '../context/AuthContext';
+ 
+@@ -12,7 +15,11 @@
+   const { user, loading } = useAuth();
+ 
+   if (loading) {
+-    return <p className="p-6 text-slate-500">Loading…</p>;
++    return (
++      <PageContainer>
++        <LoadingState />
++      </PageContainer>
++    );
+   }
+ 
+   if (!user) {
+@@ -21,11 +28,12 @@
+ 
+   if (role && user.role !== role) {
+     return (
+-      <div className="mx-auto max-w-xl p-6">
+-        <p className="rounded bg-amber-50 p-3 text-sm text-amber-800">
+-          You don't have permission to view this page.
+-        </p>
+-      </div>
++      <PageContainer size="narrow">
++        <Alert tone="warning">You don't have permission to view this page.</Alert>
++        <Link to="/" className="btn btn-secondary mt-4">
++          Go to the home page
++        </Link>
++      </PageContainer>
+     );
+   }
+ 

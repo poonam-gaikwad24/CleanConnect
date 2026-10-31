@@ -1,0 +1,74 @@
+--- a/frontend/src/pages/StaffTasks.tsx
++++ b/frontend/src/pages/StaffTasks.tsx
+@@ -2,6 +2,13 @@
+ import { Link } from 'react-router-dom';
+ import { listMyTasks, MaintenanceTask } from '../api/maintenanceTasks';
+ import { taskStatusLabel } from '../utils/taskLabels';
++import { TaskStatusBadge } from '../components/StatusBadges';
++import Alert from '../components/ui/Alert';
++import { WrenchIcon } from '../components/ui/icons';
++import ListCard from '../components/ui/ListCard';
++import PageContainer from '../components/ui/PageContainer';
++import PageHeader from '../components/ui/PageHeader';
++import { EmptyState, LoadingState } from '../components/ui/States';
+ 
+ function StaffTasks() {
+   const [tasks, setTasks] = useState<MaintenanceTask[] | null>(null);
+@@ -16,38 +23,36 @@
+   }, []);
+ 
+   return (
+-    <div className="mx-auto max-w-3xl p-6">
+-      <h1 className="mb-4 text-2xl font-bold text-slate-800">My Tasks</h1>
++    <PageContainer>
++      <PageHeader title="My Tasks" subtitle="Maintenance work assigned to you." />
+ 
+-      {loading && <p className="text-slate-500">Loading…</p>}
+-      {error && <p className="text-red-600">{error}</p>}
++      {loading && <LoadingState label="Loading your tasks…" />}
++      {error && <Alert tone="error">{error}</Alert>}
+ 
+       {tasks && tasks.length === 0 && (
+-        <p className="text-slate-500">No maintenance tasks assigned to you yet.</p>
++        <EmptyState
++          icon={<WrenchIcon className="h-5 w-5" />}
++          title="No maintenance tasks assigned to you yet."
++          description="When an administrator assigns you a task, it will appear here."
++        />
+       )}
+ 
+       {tasks && tasks.length > 0 && (
+-        <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
++        <ul className="grid gap-3">
+           {tasks.map((task) => (
+-            <li key={task.id} className="p-4 hover:bg-slate-50">
+-              <Link to={`/staff/tasks/${task.id}`} className="block">
+-                <p className="text-xs font-mono uppercase tracking-wide text-slate-400">
+-                  {task.taskCode} · Complaint #{task.complaint.complaintCode}
+-                </p>
+-                <p className="font-medium text-slate-800">
+-                  {task.complaint.toilet.cleanConnectId ?? 'ID pending'} —{' '}
+-                  {task.complaint.toilet.location}
+-                </p>
+-                <p className="text-sm text-slate-500">{task.taskInstruction}</p>
+-                <p className="text-sm font-medium text-slate-600">
+-                  Status: {taskStatusLabel(task.status)}
+-                </p>
+-              </Link>
++            <li key={task.id}>
++              <ListCard
++                to={`/staff/tasks/${task.id}`}
++                eyebrow={`${task.taskCode} · Complaint #${task.complaint.complaintCode}`}
++                title={`${task.complaint.toilet.cleanConnectId ?? 'ID pending'} — ${task.complaint.toilet.location}`}
++                meta={<p>{task.taskInstruction}</p>}
++                badges={<TaskStatusBadge status={task.status} />}
++              />
+             </li>
+           ))}
+         </ul>
+       )}
+-    </div>
++    </PageContainer>
+   );
+ }
+ 

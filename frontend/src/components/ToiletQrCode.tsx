@@ -34,16 +34,16 @@ function ToiletQrCode({ cleanConnectId, size = 180 }: ToiletQrCodeProps) {
   }
 
   return (
-    <div className="inline-flex flex-col items-center gap-2 rounded border border-slate-200 bg-white p-4">
+    <div className="card inline-flex flex-col items-center gap-2 p-4">
       <div ref={canvasRef}>
         <QRCodeCanvas value={targetUrl} size={size} level="M" includeMargin />
       </div>
-      <p className="text-xs font-mono uppercase tracking-wide text-slate-500">{cleanConnectId}</p>
-      <p className="max-w-[200px] text-center text-xs text-slate-400">{targetUrl}</p>
+      <p className="font-mono text-xs uppercase tracking-wide text-slate-700">{cleanConnectId}</p>
+      <p className="max-w-[200px] break-all text-center text-xs text-slate-600">{targetUrl}</p>
       <button
         type="button"
         onClick={handleDownload}
-        className="rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
+        className="btn btn-secondary btn-sm"
       >
         Download QR
       </button>

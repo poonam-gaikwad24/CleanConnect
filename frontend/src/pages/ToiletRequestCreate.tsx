@@ -1,6 +1,12 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createToiletRequest } from '../api/toiletRequests';
+import Alert from '../components/ui/Alert';
+import Card from '../components/ui/Card';
+import Field from '../components/ui/Field';
+import { CheckCircleIcon } from '../components/ui/icons';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
 
 const MAX_IMAGE_MB = 5;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -64,119 +70,111 @@ function ToiletRequestCreate() {
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-xl p-6">
-        <div className="rounded border border-green-200 bg-green-50 p-6 text-center">
-          <p className="text-lg font-semibold text-green-800">Request submitted successfully</p>
-          <p className="mt-2 text-sm text-green-700">Request ID: {submitted.requestCode}</p>
-          <p className="text-sm text-green-700">
+      <PageContainer size="narrow">
+        <Card className="p-8 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-800">
+            <CheckCircleIcon className="h-6 w-6" />
+          </div>
+          <h1 className="text-xl font-bold text-slate-900">Request submitted successfully</h1>
+          <p className="mt-2 text-sm text-slate-700">
+            Request ID: <span className="font-mono font-semibold">{submitted.requestCode}</span>
+          </p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-slate-700">
             An admin will review it. Once approved, this toilet gets its own CleanConnect ID and QR
             code and citizens can report issues against it.
           </p>
-          <button
-            className="mt-4 rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"
-            onClick={() => navigate('/my-toilet-requests')}
-          >
+          <button className="btn btn-primary mt-5" onClick={() => navigate('/my-toilet-requests')}>
             View my requests
           </button>
-        </div>
-      </div>
+        </Card>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="mx-auto max-w-xl p-6">
-      <h1 className="mb-1 text-2xl font-bold text-slate-800">Request Toilet Registration</h1>
-      <p className="mb-4 text-sm text-slate-500">
-        Can't find a toilet in our list? Tell us where it is and an admin will verify and register
-        it. This does not create an official CleanConnect record directly — every request is
-        reviewed first.
-      </p>
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Request Toilet Registration"
+        subtitle="Can't find a toilet in our list? Tell us where it is and an admin will verify and register it. This does not create an official CleanConnect record directly — every request is reviewed first."
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="location">
-            Location / Area *
-          </label>
-          <input
-            id="location"
-            type="text"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            placeholder="e.g. Near Kharadi bus stop"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            required
-          />
-        </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Card>
+          <h2 className="mb-3 text-base font-semibold text-slate-900">Where is it?</h2>
+          <div className="space-y-4">
+            <Field label="Location / Area *">
+              <input
+                id="location"
+                type="text"
+                className="field"
+                placeholder="e.g. Near Kharadi bus stop"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Landmark">
+              <input
+                id="landmark"
+                type="text"
+                className="field"
+                value={landmark}
+                onChange={(e) => setLandmark(e.target.value)}
+              />
+            </Field>
+            <Field label="Address">
+              <input
+                id="address"
+                type="text"
+                className="field"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </Field>
+          </div>
+        </Card>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="landmark">
-            Landmark
-          </label>
-          <input
-            id="landmark"
-            type="text"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            value={landmark}
-            onChange={(e) => setLandmark(e.target.value)}
-          />
-        </div>
+        <Card>
+          <h2 className="mb-3 text-base font-semibold text-slate-900">More information</h2>
+          <div className="space-y-4">
+            <Field label="Description">
+              <textarea
+                id="description"
+                rows={3}
+                className="field"
+                placeholder="Anything that helps an admin find and verify it."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={1000}
+              />
+            </Field>
+            <Field
+              label="Photo (optional)"
+              error={imageError}
+              help={`JPEG, PNG or WEBP, up to ${MAX_IMAGE_MB}MB. Helps the admin verify the toilet exists.`}
+            >
+              <input
+                id="image"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="block w-full text-sm text-slate-800 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-50"
+                onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
+              />
+            </Field>
+          </div>
+        </Card>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="address">
-            Address
-          </label>
-          <input
-            id="address"
-            type="text"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="description">
-            Description
-          </label>
-          <textarea
-            id="description"
-            rows={3}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Anything that helps an admin find and verify it."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={1000}
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="image">
-            Photo (optional)
-          </label>
-          <input
-            id="image"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="block w-full text-sm"
-            onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
-          />
-          <p className="mt-1 text-xs text-slate-400">
-            JPEG, PNG or WEBP, up to {MAX_IMAGE_MB}MB. Helps the admin verify the toilet exists.
-          </p>
-          {imageError && <p className="mt-1 text-sm text-red-600">{imageError}</p>}
-        </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <Alert tone="error">{error}</Alert>}
 
         <button
           type="submit"
           disabled={submitting || !location.trim()}
-          className="w-full rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
+          className="btn btn-primary btn-block"
         >
           {submitting ? 'Submitting…' : 'Submit Request'}
         </button>
       </form>
-    </div>
+    </PageContainer>
   );
 }
 

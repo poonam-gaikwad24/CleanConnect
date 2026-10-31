@@ -1,0 +1,29 @@
+--- a/frontend/src/components/ToiletDetailsLayout.tsx
++++ b/frontend/src/components/ToiletDetailsLayout.tsx
+@@ -67,7 +67,7 @@
+                   href={buildGoogleMapsSearchUrl(toilet.location)}
+                   target="_blank"
+                   rel="noopener noreferrer"
+-                  className="inline-flex min-h-[44px] items-center gap-2 rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
++                  className="btn btn-secondary"
+                 >
+                   View on Google Maps
+                   <svg
+@@ -103,7 +103,7 @@
+               {role === 'CITIZEN' && (
+                 <Link
+                   to={reportHref}
+-                  className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-800"
++                  className="btn btn-primary mt-4"
+                 >
+                   Report an issue
+                 </Link>
+@@ -111,7 +111,7 @@
+ 
+               {role === null && (
+                 <p className="mt-4 text-sm text-slate-700">
+-                  <Link to="/login" className="font-medium text-blue-700 underline">
++                  <Link to="/login" className="link">
+                     Log in
+                   </Link>{' '}
+                   to report an issue.

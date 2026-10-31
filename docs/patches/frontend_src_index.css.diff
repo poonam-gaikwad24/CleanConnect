@@ -1,0 +1,78 @@
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -1,3 +1,75 @@
+ @tailwind base;
+ @tailwind components;
+ @tailwind utilities;
++
++/* ───────────────────────── CleanConnect design system ─────────────────────────
++   One place for the look of buttons, form fields, cards and links, so the same
++   control never looks different on different pages. Colours come from the
++   `brand` scale in tailwind.config.ts (deep green); red/amber/blue stay the
++   Tailwind defaults for errors, warnings and information.                      */
++
++@layer base {
++  html {
++    scroll-behavior: smooth;
++  }
++  @media (prefers-reduced-motion: reduce) {
++    html {
++      scroll-behavior: auto;
++    }
++  }
++  body {
++    @apply bg-slate-50 text-slate-800 antialiased;
++  }
++  /* A visible keyboard focus ring everywhere, not just on controls that remembered to add one. */
++  :focus-visible {
++    @apply outline outline-2 outline-offset-2 outline-brand-600;
++  }
++}
++
++@layer components {
++  /* Buttons — use on <button> and on <Link>/<a> alike. */
++  .btn {
++    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-transparent px-4 py-2 text-sm font-medium transition-colors motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50;
++  }
++  .btn-primary {
++    @apply bg-brand-700 text-white hover:bg-brand-800;
++  }
++  .btn-secondary {
++    @apply border-slate-300 bg-white text-slate-800 hover:bg-slate-50;
++  }
++  .btn-danger {
++    @apply bg-red-700 text-white hover:bg-red-800 focus-visible:outline-red-700;
++  }
++  .btn-outline-danger {
++    @apply border-red-300 bg-white text-red-800 hover:bg-red-50 focus-visible:outline-red-700;
++  }
++  .btn-sm {
++    @apply min-h-[36px] px-3 py-1.5;
++  }
++  .btn-block {
++    @apply w-full;
++  }
++
++  /* Form controls. The border is slate-500 (4.8:1 on white) because for a text box the border is
++     often the only thing marking where the control is — WCAG asks for at least 3:1. */
++  .field {
++    @apply block w-full rounded-md border border-slate-500 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-500 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/40 disabled:bg-slate-100 disabled:text-slate-500 aria-[invalid=true]:border-red-600;
++  }
++  .label {
++    @apply mb-1 block text-sm font-medium text-slate-800;
++  }
++  .help-text {
++    @apply mt-1 text-xs text-slate-600;
++  }
++  .error-text {
++    @apply mt-1 text-sm font-medium text-red-700;
++  }
++
++  /* Surfaces and links */
++  .card {
++    @apply rounded-lg border border-slate-200 bg-white shadow-sm;
++  }
++  .link {
++    @apply font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800;
++  }
++}

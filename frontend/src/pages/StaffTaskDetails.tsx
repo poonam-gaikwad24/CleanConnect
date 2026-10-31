@@ -1,8 +1,14 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getTaskById, MaintenanceTask, startTask, submitTask } from '../api/maintenanceTasks';
-import { categoryLabel } from '../utils/complaintLabels';
-import { taskStatusLabel } from '../utils/taskLabels';
+import { CategoryBadge, TaskStatusBadge } from '../components/StatusBadges';
+import TaskProgress from '../components/TaskProgress';
+import Alert from '../components/ui/Alert';
+import Field from '../components/ui/Field';
+import { ArrowLeftIcon } from '../components/ui/icons';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
+import { LoadingState } from '../components/ui/States';
 
 const MAX_IMAGE_MB = 5;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -86,135 +92,165 @@ function StaffTaskDetails() {
   }
 
   return (
-    <div className="mx-auto max-w-xl p-6">
-      <Link to="/staff/tasks" className="text-sm text-slate-500 hover:underline">
-        ← Back to My Tasks
-      </Link>
+    <PageContainer>
+      {loading && <LoadingState label="Loading task…" />}
+      {error && <Alert tone="error">{error}</Alert>}
 
-      {loading && <p className="mt-4 text-slate-500">Loading…</p>}
-      {error && <p className="mt-4 text-red-600">{error}</p>}
+      {!task && (
+        <Link
+          to="/staff/tasks"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-brand-800 hover:underline"
+        >
+          <ArrowLeftIcon />
+          Back to My Tasks
+        </Link>
+      )}
 
       {task && (
-        <div className="mt-4 rounded border border-slate-200 bg-white p-6">
-          <p className="text-xs font-mono uppercase tracking-wide text-slate-400">
-            {task.taskCode} · Complaint #{task.complaint.complaintCode}
-          </p>
-          <h1 className="mt-1 text-xl font-bold text-slate-800">
-            {task.complaint.toilet.cleanConnectId ?? 'ID pending'} — {task.complaint.toilet.location}
-          </h1>
+        <>
+          <PageHeader
+            back={{ to: '/staff/tasks', label: 'Back to My Tasks' }}
+            eyebrow={`${task.taskCode} · Complaint #${task.complaint.complaintCode}`}
+            title={`${task.complaint.toilet.cleanConnectId ?? 'ID pending'} — ${task.complaint.toilet.location}`}
+            actions={<TaskStatusBadge status={task.status} />}
+          />
 
-          <dl className="mt-4 space-y-2 text-sm">
-            <div>
-              <dt className="font-medium text-slate-500">Task instruction</dt>
-              <dd className="whitespace-pre-wrap text-slate-800">{task.taskInstruction}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Complaint category</dt>
-              <dd className="text-slate-800">{categoryLabel(task.complaint.category)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Citizen's description</dt>
-              <dd className="whitespace-pre-wrap text-slate-800">{task.complaint.description}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Status</dt>
-              <dd className="text-slate-800">{taskStatusLabel(task.status)}</dd>
-            </div>
-            {task.adminComment && (
-              <div>
-                <dt className="font-medium text-slate-500">Admin feedback</dt>
-                <dd className="text-slate-800">{task.adminComment}</dd>
-              </div>
-            )}
-          </dl>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <section aria-labelledby="task-heading" className="card p-5 lg:col-span-2">
+              <h2 id="task-heading" className="mb-4 text-base font-semibold text-slate-900">
+                Task details
+              </h2>
+              <dl className="space-y-4 text-sm">
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Task instruction</dt>
+                  <dd className="mt-1 whitespace-pre-wrap text-slate-900">{task.taskInstruction}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Complaint category</dt>
+                  <dd className="mt-1">
+                    <CategoryBadge category={task.complaint.category} />
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Citizen's description</dt>
+                  <dd className="mt-1 whitespace-pre-wrap text-slate-900">{task.complaint.description}</dd>
+                </div>
+                {task.adminComment && (
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Admin feedback</dt>
+                    <dd className="mt-1 text-slate-900">{task.adminComment}</dd>
+                  </div>
+                )}
+              </dl>
 
-          {task.complaint.imageUrl && (
-            <div className="mt-4">
-              <p className="mb-1 text-sm font-medium text-slate-500">Citizen's evidence photo</p>
-              <img
-                src={task.complaint.imageUrl}
-                alt="Citizen evidence"
-                className="max-h-64 rounded border border-slate-200 object-contain"
-              />
-            </div>
-          )}
-
-          {(task.status === 'ASSIGNED' || task.status === 'REVISION_REQUIRED') && (
-            <div className="mt-6 border-t border-slate-200 pt-4">
-              <button
-                onClick={handleStart}
-                disabled={actionPending}
-                className="rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
-              >
-                Start Task
-              </button>
-            </div>
-          )}
-
-          {task.status === 'IN_PROGRESS' && (
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4 border-t border-slate-200 pt-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="proof">
-                  Proof-of-work photo *
-                </label>
-                <input
-                  id="proof"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="block w-full text-sm"
-                  onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
-                  required
-                />
-                <p className="mt-1 text-xs text-slate-400">
-                  JPEG, PNG or WEBP, up to {MAX_IMAGE_MB}MB. Evidence the work was performed.
-                </p>
-                {imageError && <p className="mt-1 text-sm text-red-600">{imageError}</p>}
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="comment">
-                  Comment (optional)
-                </label>
-                <textarea
-                  id="comment"
-                  rows={3}
-                  className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                  value={staffComment}
-                  onChange={(e) => setStaffComment(e.target.value)}
-                  maxLength={1000}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={actionPending || !image}
-                className="rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
-              >
-                {actionPending ? 'Submitting…' : 'Submit Work'}
-              </button>
-            </form>
-          )}
-
-          {(task.status === 'SUBMITTED' || task.status === 'VERIFIED') && (
-            <div className="mt-6 border-t border-slate-200 pt-4">
-              <p className="text-sm text-slate-500">
-                {task.status === 'SUBMITTED'
-                  ? 'Your work is submitted and waiting for admin review.'
-                  : 'This task has been verified by an admin.'}
-              </p>
-              {task.proofImageUrl && (
-                <div className="mt-3">
-                  <p className="mb-1 text-sm font-medium text-slate-500">Your proof photo</p>
+              {task.complaint.imageUrl && (
+                <div className="mt-5 border-t border-slate-200 pt-4">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-600">
+                    Citizen's evidence photo
+                  </p>
                   <img
-                    src={task.proofImageUrl}
-                    alt="Proof of work"
-                    className="max-h-64 rounded border border-slate-200 object-contain"
+                    src={task.complaint.imageUrl}
+                    alt="Citizen evidence"
+                    className="max-h-64 max-w-full rounded-md border border-slate-200 object-contain"
                   />
                 </div>
               )}
+            </section>
+
+            <div className="space-y-6">
+              <section aria-labelledby="progress-heading" className="card p-5">
+                <h2 id="progress-heading" className="mb-4 text-base font-semibold text-slate-900">
+                  Progress
+                </h2>
+                <TaskProgress status={task.status} />
+              </section>
+
+              <section aria-labelledby="action-heading" className="card p-5">
+                <h2 id="action-heading" className="mb-3 text-base font-semibold text-slate-900">
+                  Your next step
+                </h2>
+
+                {(task.status === 'ASSIGNED' || task.status === 'REVISION_REQUIRED') && (
+                  <div className="space-y-3">
+                    {task.status === 'REVISION_REQUIRED' && (
+                      <Alert tone="warning">
+                        An admin asked for further action on this task. Check the admin feedback, then
+                        start the task again.
+                      </Alert>
+                    )}
+                    <button
+                      onClick={handleStart}
+                      disabled={actionPending}
+                      className="btn btn-primary btn-block"
+                    >
+                      Start Task
+                    </button>
+                  </div>
+                )}
+
+                {task.status === 'IN_PROGRESS' && (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <Field
+                      label="Proof-of-work photo *"
+                      error={imageError}
+                      help={`JPEG, PNG or WEBP, up to ${MAX_IMAGE_MB}MB. Evidence the work was performed.`}
+                    >
+                      <input
+                        id="proof"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="block w-full text-sm text-slate-800 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-50"
+                        onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
+                        required
+                      />
+                    </Field>
+                    <Field label="Comment (optional)">
+                      <textarea
+                        id="comment"
+                        rows={3}
+                        className="field"
+                        value={staffComment}
+                        onChange={(e) => setStaffComment(e.target.value)}
+                        maxLength={1000}
+                      />
+                    </Field>
+                    <button
+                      type="submit"
+                      disabled={actionPending || !image}
+                      className="btn btn-primary btn-block"
+                    >
+                      {actionPending ? 'Submitting…' : 'Submit Work'}
+                    </button>
+                  </form>
+                )}
+
+                {(task.status === 'SUBMITTED' || task.status === 'VERIFIED') && (
+                  <div className="space-y-3">
+                    <Alert tone={task.status === 'VERIFIED' ? 'success' : 'info'}>
+                      {task.status === 'SUBMITTED'
+                        ? 'Your work is submitted and waiting for admin review.'
+                        : 'This task has been verified by an admin.'}
+                    </Alert>
+                    {task.proofImageUrl && (
+                      <div>
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-600">
+                          Your proof photo
+                        </p>
+                        <img
+                          src={task.proofImageUrl}
+                          alt="Proof of work"
+                          className="max-h-64 max-w-full rounded-md border border-slate-200 object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
             </div>
-          )}
-        </div>
+          </div>
+        </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

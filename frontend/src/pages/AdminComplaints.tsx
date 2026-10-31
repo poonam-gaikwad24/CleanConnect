@@ -8,6 +8,15 @@ import {
   PaginatedComplaints,
 } from '../api/complaints';
 import { ALL_CATEGORIES, ALL_STATUSES, categoryLabel, statusLabel } from '../utils/complaintLabels';
+import { CategoryBadge, ComplaintStatusBadge } from '../components/StatusBadges';
+import Alert from '../components/ui/Alert';
+import Badge from '../components/ui/Badge';
+import { ClipboardIcon } from '../components/ui/icons';
+import ListCard from '../components/ui/ListCard';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
+import Pagination from '../components/ui/Pagination';
+import { EmptyState, LoadingState } from '../components/ui/States';
 
 function AdminComplaints() {
   const [result, setResult] = useState<PaginatedComplaints | null>(null);
@@ -33,95 +42,101 @@ function AdminComplaints() {
   }, [page, status, category]);
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-4 text-2xl font-bold text-slate-800">Complaints (Admin)</h1>
+    <PageContainer>
+      <PageHeader
+        title="Complaints (Admin)"
+        subtitle="Review reported issues, then assign each one to maintenance staff."
+      />
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <select
-          className="rounded border border-slate-300 px-3 py-2 text-sm"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value as ComplaintStatus | '');
-            setPage(1);
-          }}
-        >
-          <option value="">All statuses</option>
-          {ALL_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {statusLabel(s)}
-            </option>
-          ))}
-        </select>
+      <div className="card mb-6 flex flex-wrap items-end gap-4 p-4">
+        <div className="min-w-[10rem] flex-1 sm:flex-none">
+          <label htmlFor="filter-status" className="label">
+            Status
+          </label>
+          <select
+            id="filter-status"
+            className="field sm:w-52"
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value as ComplaintStatus | '');
+              setPage(1);
+            }}
+          >
+            <option value="">All statuses</option>
+            {ALL_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {statusLabel(s)}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          className="rounded border border-slate-300 px-3 py-2 text-sm"
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value as ComplaintCategory | '');
-            setPage(1);
-          }}
-        >
-          <option value="">All categories</option>
-          {ALL_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {categoryLabel(c)}
-            </option>
-          ))}
-        </select>
+        <div className="min-w-[10rem] flex-1 sm:flex-none">
+          <label htmlFor="filter-category" className="label">
+            Category
+          </label>
+          <select
+            id="filter-category"
+            className="field sm:w-60"
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value as ComplaintCategory | '');
+              setPage(1);
+            }}
+          >
+            <option value="">All categories</option>
+            {ALL_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {categoryLabel(c)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {loading && <p className="text-slate-500">Loading…</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      {loading && <LoadingState label="Loading complaints…" />}
+      {error && <Alert tone="error">{error}</Alert>}
 
       {result && (
         <>
-          <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
-            {result.data.map((complaint: Complaint) => (
-              <li key={complaint.id} className="p-4 hover:bg-slate-50">
-                <Link to={`/complaints/${complaint.id}`} className="block">
-                  <p className="text-xs font-mono uppercase tracking-wide text-slate-400">
-                    Complaint #{complaint.complaintCode}
-                  </p>
-                  <p className="font-medium text-slate-800">
-                    {complaint.toilet.cleanConnectId ?? 'ID pending'} — {complaint.toilet.location}
-                  </p>
-                  <p className="text-sm text-slate-500">{complaint.description}</p>
-                  <p className="text-sm text-slate-500">
-                    Category: {categoryLabel(complaint.category)} · Status:{' '}
-                    {statusLabel(complaint.status)}
-                    {complaint.imageUrl ? ' · Has photo evidence' : ''}
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-
-          {result.data.length === 0 && (
-            <p className="mt-4 text-slate-500">No complaints match these filters.</p>
+          {result.data.length === 0 ? (
+            <EmptyState
+              icon={<ClipboardIcon className="h-5 w-5" />}
+              title="No complaints match these filters."
+              description="Try a different status or category."
+            />
+          ) : (
+            <ul className="grid gap-3">
+              {result.data.map((complaint: Complaint) => (
+                <li key={complaint.id}>
+                  <ListCard
+                    to={`/complaints/${complaint.id}`}
+                    eyebrow={`Complaint #${complaint.complaintCode}`}
+                    title={`${complaint.toilet.cleanConnectId ?? 'ID pending'} — ${complaint.toilet.location}`}
+                    meta={<p className="line-clamp-2">{complaint.description}</p>}
+                    badges={
+                      <>
+                        <ComplaintStatusBadge status={complaint.status} />
+                        <CategoryBadge category={complaint.category} />
+                        {complaint.imageUrl && <Badge tone="neutral">Photo attached</Badge>}
+                      </>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
           )}
 
-          <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-            <button
-              className="rounded border border-slate-300 px-3 py-1 disabled:opacity-40"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </button>
-            <span>
-              Page {result.page} of {result.totalPages} ({result.total} total)
-            </span>
-            <button
-              className="rounded border border-slate-300 px-3 py-1 disabled:opacity-40"
-              disabled={page >= result.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </button>
-          </div>
+          <Pagination
+            page={result.page}
+            totalPages={result.totalPages}
+            total={result.total}
+            onPrevious={() => setPage((p) => p - 1)}
+            onNext={() => setPage((p) => p + 1)}
+          />
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

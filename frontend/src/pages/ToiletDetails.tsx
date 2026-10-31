@@ -4,6 +4,10 @@ import { getToiletById, Toilet } from '../api/toilets';
 import { useAuth } from '../context/AuthContext';
 import ToiletReviews from '../components/ToiletReviews';
 import ToiletHealthCard from '../components/ToiletHealthCard';
+import Alert from '../components/ui/Alert';
+import { ArrowLeftIcon } from '../components/ui/icons';
+import PageContainer from '../components/ui/PageContainer';
+import { LoadingState } from '../components/ui/States';
 import ToiletDetailsLayout from '../components/ToiletDetailsLayout';
 
 function ToiletDetails() {
@@ -28,20 +32,20 @@ function ToiletDetails() {
   }, [id]);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-      <Link to="/toilets" className="text-sm font-medium text-slate-600 hover:underline">
-        ← Back to list
+    <PageContainer>
+      <Link
+        to="/toilets"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-brand-800 hover:underline"
+      >
+        <ArrowLeftIcon />
+        Back to list
       </Link>
 
-      {loading && (
-        <p role="status" className="mt-4 text-slate-600">
-          Loading…
-        </p>
-      )}
+      {loading && <LoadingState label="Loading toilet…" />}
       {error && (
-        <p role="alert" className="mt-4 text-red-700">
+        <Alert tone="error" className="mt-4">
           {error}
-        </p>
+        </Alert>
       )}
 
       {toilet && (
@@ -57,7 +61,7 @@ function ToiletDetails() {
           }
         />
       )}
-    </div>
+    </PageContainer>
   );
 }
 

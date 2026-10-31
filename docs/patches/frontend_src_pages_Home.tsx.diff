@@ -1,0 +1,123 @@
+--- a/frontend/src/pages/Home.tsx
++++ b/frontend/src/pages/Home.tsx
+@@ -1,10 +1,115 @@
++import { useEffect, useState } from 'react';
++import { Link } from 'react-router-dom';
++import { listToilets } from '../api/toilets';
++import { useAuth } from '../context/AuthContext';
++import { ClipboardIcon, PinIcon, StarIcon, WrenchIcon } from '../components/ui/icons';
++
++const STEPS = [
++  {
++    icon: <PinIcon className="h-5 w-5" />,
++    title: 'Find a toilet',
++    text: 'Search the public toilet directory, see its details and a condition score estimated from records.',
++  },
++  {
++    icon: <ClipboardIcon className="h-5 w-5" />,
++    title: 'Report a problem',
++    text: 'Spotted no water, a broken fixture or poor cleanliness? Report it with a photo so it can be acted on.',
++  },
++  {
++    icon: <WrenchIcon className="h-5 w-5" />,
++    title: 'Maintenance and verification',
++    text: 'An admin assigns the work to staff, staff submit proof, and an admin verifies it before the issue is resolved.',
++  },
++  {
++    icon: <StarIcon className="h-5 w-5" />,
++    title: 'Rate and review',
++    text: 'Share your own experience. Ratings are shown separately from the condition score.',
++  },
++];
++
+ function Home() {
++  const { user } = useAuth();
++  // A real number from the existing toilets API; the line is simply hidden
++  // if it cannot be loaded.
++  const [toiletCount, setToiletCount] = useState<number | null>(null);
++
++  useEffect(() => {
++    listToilets({ page: 1, limit: 1 })
++      .then((result) => setToiletCount(result.total))
++      .catch(() => setToiletCount(null));
++  }, []);
++
+   return (
+-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50 p-6 text-center">
+-      <h1 className="text-3xl font-bold text-slate-800">CleanConnect</h1>
+-      <p className="text-slate-600">
+-        Frontend foundation is running — React + TypeScript + Vite + Tailwind.
+-      </p>
++    <div>
++      <section className="border-b border-slate-200 bg-white">
++        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
++          <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
++            Community-driven public toilet maintenance
++          </p>
++          <h1 className="mt-2 max-w-2xl text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
++            Cleaner public toilets, maintained together.
++          </h1>
++          <p className="mt-4 max-w-2xl text-base text-slate-700">
++            CleanConnect connects citizens, maintenance staff and administrators: find a toilet,
++            report problems, and follow each issue until a fix is verified.
++          </p>
++
++          <div className="mt-6 flex flex-wrap gap-3">
++            <Link to="/toilets" className="btn btn-primary">
++              Browse toilets
++            </Link>
++            {!user && (
++              <Link to="/register" className="btn btn-secondary">
++                Create an account
++              </Link>
++            )}
++            {user?.role === 'CITIZEN' && (
++              <Link to="/complaints/create" className="btn btn-secondary">
++                Report an issue
++              </Link>
++            )}
++            {user?.role === 'STAFF' && (
++              <Link to="/staff/tasks" className="btn btn-secondary">
++                My tasks
++              </Link>
++            )}
++            {user?.role === 'ADMIN' && (
++              <Link to="/admin/complaints" className="btn btn-secondary">
++                Review complaints
++              </Link>
++            )}
++          </div>
++
++          {toiletCount !== null && toiletCount > 0 && (
++            <p className="mt-6 text-sm text-slate-700">
++              <span className="font-semibold text-slate-900">{toiletCount.toLocaleString()}</span>{' '}
++              public toilets listed so far.
++            </p>
++          )}
++        </div>
++      </section>
++
++      <section aria-labelledby="how-it-works" className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
++        <h2 id="how-it-works" className="text-xl font-bold text-slate-900">
++          How it works
++        </h2>
++        <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
++          {STEPS.map((step, index) => (
++            <li key={step.title} className="card p-5">
++              <div className="flex items-center gap-3">
++                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700">
++                  {step.icon}
++                </span>
++                <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
++                  Step {index + 1}
++                </span>
++              </div>
++              <h3 className="mt-3 font-semibold text-slate-900">{step.title}</h3>
++              <p className="mt-1 text-sm text-slate-700">{step.text}</p>
++            </li>
++          ))}
++        </ol>
++      </section>
+     </div>
+   );
+ }

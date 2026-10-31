@@ -87,14 +87,14 @@ describe('loading and error states', () => {
     assert.match(html, />Toilet Health Score</);
   });
 
-  it('error: alert with the message and a retry button (≥44px tap target) only when onRetry is given', () => {
+  it('error: alert with the message and a shared-style retry button, only when onRetry is given', () => {
     const html = render(
       <ToiletHealthView state={{ status: 'error', message: 'Could not load the health score.' }} onRetry={() => undefined} />
     );
     assert.match(html, /role="alert"/);
     assert.match(html, /Could not load the health score\./);
     assert.match(html, /Try again/);
-    assert.match(html, /min-h-\[44px\]/);
+    assert.match(html, /class="btn btn-outline-danger mt-2"/);
     assert.doesNotMatch(render(<ToiletHealthView state={{ status: 'error', message: 'x' }} />), /Try again/);
   });
 });

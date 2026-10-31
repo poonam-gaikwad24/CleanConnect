@@ -1,0 +1,171 @@
+--- a/frontend/src/components/ToiletReviews.tsx
++++ b/frontend/src/components/ToiletReviews.tsx
+@@ -11,6 +11,9 @@
+ import { canDeleteReview } from '../utils/reviewPermissions';
+ import SectionCard from './SectionCard';
+ import StarRating from './StarRating';
++import Alert from './ui/Alert';
++import Field from './ui/Field';
++import { LoadingState } from './ui/States';
+ 
+ interface ToiletReviewsProps {
+   toiletId: string;
+@@ -121,24 +124,23 @@
+ 
+   return (
+     <SectionCard title="Ratings & Reviews" headingId="toilet-reviews-heading">
+-
+-      {loading && <p className="text-sm text-slate-500">Loading reviews…</p>}
+-      {error && <p className="text-sm text-red-600">{error}</p>}
++      {loading && <LoadingState label="Loading reviews…" className="py-2" />}
++      {error && <Alert tone="error">{error}</Alert>}
+ 
+       {data && (
+         <>
+           {data.reviewCount > 0 ? (
+-            <div className="mb-4 flex items-center gap-2">
++            <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1">
+               <StarRating value={Math.round(data.averageRating)} size="lg" />
+-              <span className="text-lg font-semibold text-slate-800">
++              <span className="text-xl font-bold text-slate-900">
+                 {data.averageRating.toFixed(1)} / 5
+               </span>
+-              <span className="text-sm text-slate-500">
++              <span className="text-sm text-slate-700">
+                 Based on {data.reviewCount} review{data.reviewCount === 1 ? '' : 's'}
+               </span>
+             </div>
+           ) : (
+-            <p className="mb-4 text-sm text-slate-500">
++            <p className="mb-5 rounded-md border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-700">
+               No reviews yet. Be the first to review this toilet.
+             </p>
+           )}
+@@ -148,35 +150,29 @@
+               purely as public experience context (see Module 8 spec). */}
+ 
+           {user?.role === 'CITIZEN' && !editing && (
+-            <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3">
++            <div className="mb-5 rounded-md border border-brand-200 bg-brand-50 p-4">
+               {myReview ? (
+                 <>
+-                  <p className="mb-1 text-sm font-medium text-slate-700">Your Review</p>
++                  <p className="mb-1 text-sm font-semibold text-slate-900">Your Review</p>
+                   <StarRating value={myReview.rating} />
+                   {myReview.comment && (
+-                    <p className="mt-1 text-sm text-slate-700">{myReview.comment}</p>
++                    <p className="mt-1 text-sm text-slate-800">{myReview.comment}</p>
+                   )}
+-                  <div className="mt-2 flex gap-3">
+-                    <button
+-                      onClick={() => startEdit(myReview)}
+-                      className="text-sm text-blue-600 hover:underline"
+-                    >
++                  <div className="mt-3 flex flex-wrap gap-2">
++                    <button onClick={() => startEdit(myReview)} className="btn btn-secondary btn-sm">
+                       Edit Review
+                     </button>
+                     <button
+                       onClick={() => removeReview(myReview)}
+                       disabled={deletingId !== null}
+-                      className="text-sm text-red-600 hover:underline disabled:opacity-50"
++                      className="btn btn-outline-danger btn-sm"
+                     >
+                       Delete Review
+                     </button>
+                   </div>
+                 </>
+               ) : (
+-                <button
+-                  onClick={() => startEdit()}
+-                  className="rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"
+-                >
++                <button onClick={() => startEdit()} className="btn btn-primary">
+                   Rate this toilet
+                 </button>
+               )}
+@@ -186,61 +182,50 @@
+           {user?.role === 'CITIZEN' && editing && (
+             <form
+               onSubmit={handleSubmit}
+-              className="mb-4 space-y-3 rounded border border-slate-200 bg-slate-50 p-3"
++              className="mb-5 space-y-4 rounded-md border border-brand-200 bg-brand-50 p-4"
+             >
+-              <p className="text-sm font-medium text-slate-700">
++              <p className="text-sm font-semibold text-slate-900">
+                 {myReview ? 'Edit your review' : 'Rate this toilet'}
+               </p>
+               <div>
+-                <p className="mb-1 text-sm text-slate-600">Your Rating</p>
++                <p className="label">Your Rating</p>
+                 <StarRating value={formRating} onChange={setFormRating} size="lg" />
+               </div>
+-              <div>
+-                <label className="mb-1 block text-sm text-slate-600" htmlFor="reviewComment">
+-                  Write a review (optional)
+-                </label>
++              <Field label="Write a review (optional)">
+                 <textarea
+                   id="reviewComment"
+                   rows={3}
+                   maxLength={500}
+-                  className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
++                  className="field"
+                   value={formComment}
+                   onChange={(e) => setFormComment(e.target.value)}
+                 />
+-              </div>
+-              {formError && <p className="text-sm text-red-600">{formError}</p>}
+-              <div className="flex gap-3">
++              </Field>
++              {formError && <Alert tone="error">{formError}</Alert>}
++              <div className="flex flex-wrap gap-2">
+                 <button
+                   type="submit"
+                   disabled={submitting || formRating < 1}
+-                  className="rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
++                  className="btn btn-primary"
+                 >
+                   {submitting ? 'Saving…' : 'Submit Review'}
+                 </button>
+-                <button
+-                  type="button"
+-                  onClick={() => setEditing(false)}
+-                  className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-600"
+-                >
++                <button type="button" onClick={() => setEditing(false)} className="btn btn-secondary">
+                   Cancel
+                 </button>
+               </div>
+             </form>
+           )}
+ 
+-          {deleteError && (
+-            <p role="alert" className="mb-3 text-sm text-red-600">
+-              {deleteError}
+-            </p>
+-          )}
++          {deleteError && <Alert tone="error" className="mb-4">{deleteError}</Alert>}
+ 
+           {data.reviews.length > 0 && (
+             <ul className="space-y-3">
+               {data.reviews.map((review) => (
+-                <li key={review.id} className="rounded border border-slate-200 bg-white p-3">
++                <li key={review.id} className="rounded-md border border-slate-200 bg-white p-4">
+                   <StarRating value={review.rating} />
+-                  {review.comment && <p className="mt-1 text-sm text-slate-700">{review.comment}</p>}
+-                  <p className="mt-1 text-xs text-slate-500">
++                  {review.comment && <p className="mt-1.5 text-sm text-slate-800">{review.comment}</p>}
++                  <p className="mt-1.5 text-xs text-slate-600">
+                     {review.reviewerName} · {timeAgo(review.createdAt)}
+                   </p>
+                   {isAdmin && (
+@@ -249,7 +234,7 @@
+                       onClick={() => removeReview(review)}
+                       disabled={deletingId !== null}
+                       aria-label={`Delete review by ${review.reviewerName} (admin)`}
+-                      className="mt-2 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
++                      className="btn btn-outline-danger btn-sm mt-3"
+                     >
+                       {deletingId === review.id ? 'Deleting…' : 'Delete review (admin)'}
+                     </button>

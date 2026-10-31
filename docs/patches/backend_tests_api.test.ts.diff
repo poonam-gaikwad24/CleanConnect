@@ -1,0 +1,35 @@
+--- a/backend/tests/api.test.ts
++++ b/backend/tests/api.test.ts
+@@ -241,13 +241,31 @@
+     assert.ok(t2.score > t1.score, `${t2.score} should exceed ${t1.score}`);
+   });
+ 
++  it('a poorly-rated toilet with no complaints is not scored as healthy, and the API says why', async () => {
++    // Three 1★/1★/2★ reviews, no complaints at all — the shape of the CC-PMC-0001 problem.
++    data.toilets.push({ id: 'aaaaaaaa-0000-4000-8000-000000000004', cleanConnectId: 'CC-PMC-0004' });
++    data.reviews.push(
++      { id: 'p1', toiletId: 'aaaaaaaa-0000-4000-8000-000000000004', userId: USERS.citizenA.id, rating: 1, comment: null },
++      { id: 'p2', toiletId: 'aaaaaaaa-0000-4000-8000-000000000004', userId: USERS.citizenB.id, rating: 1, comment: null },
++      { id: 'p3', toiletId: 'aaaaaaaa-0000-4000-8000-000000000004', userId: USERS.citizenC.id, rating: 2, comment: null },
++    );
++    const { status, body } = await call('GET', '/api/toilets/CC-PMC-0004/health');
++    assert.equal(status, 200);
++    assert.equal(body.health.label, 'NEEDS_ATTENTION');
++    assert.ok(body.health.score < 50);
++    assert.ok(body.health.notes.some((n: string) => /reduced to/.test(n)), 'the reduction must be explained');
++    // explanation agrees with the number
++    const sumTenths = body.health.factors.reduce((s: number, f: any) => s + Math.round(f.points * 10), 0);
++    assert.equal(Math.round(sumTenths / 10), body.health.score);
++  });
++
+   it('reflects a complaint being resolved and verified (same endpoint, new database state)', async () => {
+     const before = (await call('GET', `/api/toilets/${T1}/health`)).body.health;
+     data.complaints.find((c) => c.id === 'c1')!.status = 'RESOLVED';
+     data.tasks.push({ id: 'k1', complaintId: 'c1', status: 'VERIFIED' });
+     const after = (await call('GET', `/api/toilets/${T1}/health`)).body.health;
+     assert.ok(after.score > before.score);
+-    assert.equal(after.factors.find((f: any) => f.key === 'OPEN_ISSUES').points, 60);
++    assert.equal(after.factors.find((f: any) => f.key === 'OPEN_ISSUES').points, 50);
+     assert.equal(after.factors.find((f: any) => f.key === 'VERIFIED_MAINTENANCE').points, 10);
+   });
+ });

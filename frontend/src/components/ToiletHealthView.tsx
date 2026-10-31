@@ -329,7 +329,7 @@ function ToiletHealthView({ state, onRetry }: ToiletHealthViewProps) {
             <button
               type="button"
               onClick={onRetry}
-              className="mt-2 min-h-[44px] rounded border border-red-300 bg-white px-4 py-2 font-medium text-red-800 hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"
+              className="btn btn-outline-danger mt-2"
             >
               Try again
             </button>

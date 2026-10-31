@@ -10,6 +10,13 @@ import { listToilets, Toilet } from '../api/toilets';
 import { useAuth } from '../context/AuthContext';
 import ToiletQrCode from '../components/ToiletQrCode';
 import { requestStatusLabel } from '../utils/requestLabels';
+import { RequestStatusBadge } from '../components/StatusBadges';
+import Alert from '../components/ui/Alert';
+import Field from '../components/ui/Field';
+import { ArrowLeftIcon } from '../components/ui/icons';
+import PageContainer from '../components/ui/PageContainer';
+import PageHeader from '../components/ui/PageHeader';
+import { LoadingState } from '../components/ui/States';
 
 function ToiletRequestDetails() {
   const { id } = useParams<{ id: string }>();
@@ -83,140 +90,150 @@ function ToiletRequestDetails() {
   const isAdmin = user?.role === 'ADMIN';
 
   return (
-    <div className="mx-auto max-w-xl p-6">
-      <Link
-        to={isAdmin ? '/admin/toilet-requests' : '/my-toilet-requests'}
-        className="text-sm text-slate-500 hover:underline"
-      >
-        ← Back to list
-      </Link>
+    <PageContainer>
+      {loading && <LoadingState label="Loading request…" />}
+      {error && <Alert tone="error">{error}</Alert>}
 
-      {loading && <p className="mt-4 text-slate-500">Loading…</p>}
-      {error && <p className="mt-4 text-red-600">{error}</p>}
+      {!request && !loading && (
+        <Link
+          to={isAdmin ? '/admin/toilet-requests' : '/my-toilet-requests'}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-brand-800 hover:underline"
+        >
+          <ArrowLeftIcon />
+          Back to list
+        </Link>
+      )}
 
       {request && (
-        <div className="mt-4 rounded border border-slate-200 bg-white p-6">
-          <p className="text-xs font-mono uppercase tracking-wide text-slate-400">
-            Request #{request.requestCode}
-          </p>
-          <h1 className="mt-1 text-xl font-bold text-slate-800">{request.location}</h1>
+        <>
+          <PageHeader
+            back={{ to: isAdmin ? '/admin/toilet-requests' : '/my-toilet-requests', label: 'Back to list' }}
+            eyebrow={`Request #${request.requestCode}`}
+            title={request.location}
+            actions={<RequestStatusBadge status={request.status} />}
+          />
 
-          <dl className="mt-4 space-y-2 text-sm">
-            <div>
-              <dt className="font-medium text-slate-500">Landmark</dt>
-              <dd className="text-slate-800">{request.landmark ?? 'Not provided'}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Address</dt>
-              <dd className="text-slate-800">{request.address ?? 'Not provided'}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Description</dt>
-              <dd className="whitespace-pre-wrap text-slate-800">
-                {request.description ?? 'Not provided'}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Status</dt>
-              <dd className="text-slate-800">{requestStatusLabel(request.status)}</dd>
-            </div>
-            {request.adminNotes && (
-              <div>
-                <dt className="font-medium text-slate-500">Admin notes</dt>
-                <dd className="text-slate-800">{request.adminNotes}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="font-medium text-slate-500">Submitted</dt>
-              <dd className="text-slate-800">{new Date(request.createdAt).toLocaleString()}</dd>
-            </div>
-          </dl>
+          <div className={`grid gap-6 ${isAdmin && request.status === 'PENDING' ? 'lg:grid-cols-3' : ''}`}>
+            <div className={`space-y-6 ${isAdmin && request.status === 'PENDING' ? 'lg:col-span-2' : ''}`}>
+              <section aria-labelledby="request-heading" className="card p-5">
+                <h2 id="request-heading" className="mb-4 text-base font-semibold text-slate-900">
+                  Request details
+                </h2>
+                <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Landmark</dt>
+                    <dd className="mt-1 text-slate-900">{request.landmark ?? 'Not provided'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Address</dt>
+                    <dd className="mt-1 text-slate-900">{request.address ?? 'Not provided'}</dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Description</dt>
+                    <dd className="mt-1 whitespace-pre-wrap text-slate-900">
+                      {request.description ?? 'Not provided'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Status</dt>
+                    <dd className="mt-1">
+                      <RequestStatusBadge status={request.status} />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Submitted</dt>
+                    <dd className="mt-1 text-slate-900">{new Date(request.createdAt).toLocaleString()}</dd>
+                  </div>
+                  {request.adminNotes && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">Admin notes</dt>
+                      <dd className="mt-1 text-slate-900">{request.adminNotes}</dd>
+                    </div>
+                  )}
+                </dl>
 
-          {request.imageUrl && (
-            <div className="mt-4">
-              <p className="mb-1 text-sm font-medium text-slate-500">Evidence photo</p>
-              <img
-                src={request.imageUrl}
-                alt="Toilet request evidence"
-                className="max-h-80 rounded border border-slate-200 object-contain"
-              />
-            </div>
-          )}
-
-          {request.status === 'APPROVED' && request.resultingToilet && (
-            <div className="mt-6 border-t border-slate-200 pt-4">
-              <p className="mb-2 text-sm font-medium text-slate-500">
-                Registered as {request.resultingToilet.cleanConnectId}
-              </p>
-              <div className="flex flex-wrap items-center gap-4">
-                {request.resultingToilet.cleanConnectId && (
-                  <ToiletQrCode cleanConnectId={request.resultingToilet.cleanConnectId} size={140} />
+                {request.imageUrl && (
+                  <div className="mt-5 border-t border-slate-200 pt-4">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-600">
+                      Evidence photo
+                    </p>
+                    <img
+                      src={request.imageUrl}
+                      alt="Toilet request evidence"
+                      className="max-h-80 max-w-full rounded-md border border-slate-200 object-contain"
+                    />
+                  </div>
                 )}
-                <Link
-                  to={`/toilets/${request.resultingToilet.id}`}
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  View toilet page →
-                </Link>
-              </div>
-            </div>
-          )}
+              </section>
 
-          {isAdmin && request.status === 'PENDING' && (
-            <div className="mt-6 border-t border-slate-200 pt-4">
-              {possibleDuplicates.length > 0 && (
-                <div className="mb-4 rounded border border-amber-200 bg-amber-50 p-3">
-                  <p className="mb-2 text-sm font-medium text-amber-800">
-                    Possible existing matches for "{request.location}" — check before approving:
-                  </p>
-                  <ul className="space-y-1">
-                    {possibleDuplicates.map((toilet) => (
-                      <li key={toilet.id}>
-                        <Link
-                          to={`/toilets/${toilet.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-700 hover:underline"
-                        >
-                          {toilet.cleanConnectId ?? 'ID pending'} — {toilet.location}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              {request.status === 'APPROVED' && request.resultingToilet && (
+                <section aria-labelledby="registered-heading" className="card p-5">
+                  <h2 id="registered-heading" className="mb-3 text-base font-semibold text-slate-900">
+                    Registered as {request.resultingToilet.cleanConnectId}
+                  </h2>
+                  <div className="flex flex-wrap items-center gap-5">
+                    {request.resultingToilet.cleanConnectId && (
+                      <ToiletQrCode cleanConnectId={request.resultingToilet.cleanConnectId} size={140} />
+                    )}
+                    <Link to={`/toilets/${request.resultingToilet.id}`} className="btn btn-secondary">
+                      View toilet page →
+                    </Link>
+                  </div>
+                </section>
               )}
-
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="adminNotes">
-                Admin notes (optional)
-              </label>
-              <textarea
-                id="adminNotes"
-                rows={2}
-                className="mb-3 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={handleApprove}
-                  disabled={reviewing}
-                  className="rounded bg-green-700 px-4 py-2 text-sm text-white hover:bg-green-800 disabled:opacity-50"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={handleReject}
-                  disabled={reviewing}
-                  className="rounded bg-red-700 px-4 py-2 text-sm text-white hover:bg-red-800 disabled:opacity-50"
-                >
-                  Reject
-                </button>
-              </div>
             </div>
-          )}
-        </div>
+
+            {isAdmin && request.status === 'PENDING' && (
+              <section aria-labelledby="review-heading" className="card h-fit p-5">
+                <h2 id="review-heading" className="mb-3 text-base font-semibold text-slate-900">
+                  Review request
+                </h2>
+
+                {possibleDuplicates.length > 0 && (
+                  <Alert tone="warning" className="mb-4">
+                    <p className="mb-2 font-medium">
+                      Possible existing matches for "{request.location}" — check before approving:
+                    </p>
+                    <ul className="space-y-1">
+                      {possibleDuplicates.map((toilet) => (
+                        <li key={toilet.id}>
+                          <Link
+                            to={`/toilets/${toilet.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="link"
+                          >
+                            {toilet.cleanConnectId ?? 'ID pending'} — {toilet.location}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </Alert>
+                )}
+
+                <Field label="Admin notes (optional)">
+                  <textarea
+                    id="adminNotes"
+                    rows={3}
+                    className="field"
+                    value={adminNotes}
+                    onChange={(e) => setAdminNotes(e.target.value)}
+                  />
+                </Field>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button onClick={handleApprove} disabled={reviewing} className="btn btn-primary">
+                    Approve
+                  </button>
+                  <button onClick={handleReject} disabled={reviewing} className="btn btn-danger">
+                    Reject
+                  </button>
+                </div>
+              </section>
+            )}
+          </div>
+        </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
